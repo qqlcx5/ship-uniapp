@@ -258,7 +258,8 @@ function handleDirectionControl(direction: string, isPressed: boolean) {
   directionControl.value[direction as keyof typeof directionControl.value] = isPressed
 
   // 根据按下的方向更新摇杆位置
-  let x = 0; let y = 0
+  let x = 0
+  let y = 0
 
   if (directionControl.value.left)
     x -= 100

@@ -15,24 +15,24 @@
 
 /* 颜色变量 */
 
-/* 行为相关颜色 */
-$uni-color-primary: #007aff;
-$uni-color-success: #4cd964;
-$uni-color-warning: #f0ad4e;
-$uni-color-error: #dd524d;
+/* 行为相关颜色 - 海洋主题 */
+$uni-color-primary: #4FD1C7; // 海洋青色
+$uni-color-success: #10B981; // 海洋绿色
+$uni-color-warning: #F59E0B; // 海洋橙色
+$uni-color-error: #EF4444; // 海洋红色
 
-/* 文字基本颜色 */
-$uni-text-color: #333; // 基本色
-$uni-text-color-inverse: #fff; // 反色
-$uni-text-color-grey: #999; // 辅助灰色，如加载更多的提示信息
-$uni-text-color-placeholder: #808080;
-$uni-text-color-disable: #c0c0c0;
+/* 文字基本颜色 - 海洋主题 */
+$uni-text-color: #ffffff; // 白色文字（深色背景）
+$uni-text-color-inverse: #0B1426; // 深海蓝色（浅色背景）
+$uni-text-color-grey: rgba(255, 255, 255, 0.7); // 半透明白色
+$uni-text-color-placeholder: rgba(255, 255, 255, 0.5); // 占位符颜色
+$uni-text-color-disable: rgba(255, 255, 255, 0.3); // 禁用状态颜色
 
-/* 背景颜色 */
-$uni-bg-color: #fff;
-$uni-bg-color-grey: #f8f8f8;
-$uni-bg-color-hover: #f1f1f1; // 点击状态颜色
-$uni-bg-color-mask: rgb(0 0 0 / 40%); // 遮罩颜色
+/* 背景颜色 - 海洋主题 */
+$uni-bg-color: #0B1426; // 深海蓝背景
+$uni-bg-color-grey: #1A365D; // 海洋灰色背景
+$uni-bg-color-hover: rgba(79, 209, 199, 0.1); // 海洋青色悬停
+$uni-bg-color-mask: rgba(0, 0, 0, 0.6); // 深色遮罩
 
 /* 边框颜色 */
 $uni-border-color: #c8c7cc;
@@ -70,6 +70,9 @@ $uni-opacity-disabled: 0.3; // 组件禁用态的透明度
 
 /* 船舶相关样式 */
 @import '@/style/ship-icons.scss';
+
+/* 海洋主题样式 */
+@import '@/styles/ocean-theme.scss';
 
 /* 文章场景相关 */
 $uni-color-title: #2c405a; // 文章标题颜色

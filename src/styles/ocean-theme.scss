@@ -1,0 +1,305 @@
+// 海洋主题全局样式
+// 主题色彩定义
+:root {
+  // 主色调 - 深海蓝色系
+  --ocean-primary: #0B1426;
+  --ocean-secondary: #1A365D;
+  --ocean-accent: #4FD1C7;
+  --ocean-light: #60A5FA;
+  
+  // 功能色彩
+  --ocean-success: #10B981;
+  --ocean-warning: #F59E0B;
+  --ocean-error: #EF4444;
+  --ocean-info: #3B82F6;
+  
+  // 中性色彩
+  --ocean-white: #FFFFFF;
+  --ocean-gray-50: rgba(255, 255, 255, 0.05);
+  --ocean-gray-100: rgba(255, 255, 255, 0.1);
+  --ocean-gray-200: rgba(255, 255, 255, 0.2);
+  --ocean-gray-300: rgba(255, 255, 255, 0.3);
+  --ocean-gray-400: rgba(255, 255, 255, 0.4);
+  --ocean-gray-500: rgba(255, 255, 255, 0.5);
+  --ocean-gray-600: rgba(255, 255, 255, 0.6);
+  --ocean-gray-700: rgba(255, 255, 255, 0.7);
+  --ocean-gray-800: rgba(255, 255, 255, 0.8);
+  --ocean-gray-900: rgba(255, 255, 255, 0.9);
+  
+  // 渐变色
+  --ocean-gradient-primary: linear-gradient(135deg, var(--ocean-primary) 0%, var(--ocean-secondary) 50%, #2563eb 100%);
+  --ocean-gradient-accent: linear-gradient(135deg, var(--ocean-accent) 0%, var(--ocean-light) 100%);
+  --ocean-gradient-success: linear-gradient(135deg, var(--ocean-success) 0%, #059669 100%);
+  --ocean-gradient-warning: linear-gradient(135deg, var(--ocean-warning) 0%, #d97706 100%);
+  --ocean-gradient-error: linear-gradient(135deg, var(--ocean-error) 0%, #dc2626 100%);
+  
+  // 阴影
+  --ocean-shadow-sm: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
+  --ocean-shadow-md: 0 8rpx 24rpx rgba(0, 0, 0, 0.2);
+  --ocean-shadow-lg: 0 16rpx 48rpx rgba(0, 0, 0, 0.3);
+  --ocean-shadow-xl: 0 24rpx 64rpx rgba(0, 0, 0, 0.4);
+  
+  // 发光效果
+  --ocean-glow-accent: 0 0 30rpx rgba(79, 209, 199, 0.4);
+  --ocean-glow-success: 0 0 30rpx rgba(16, 185, 129, 0.4);
+  --ocean-glow-warning: 0 0 30rpx rgba(245, 158, 11, 0.4);
+  --ocean-glow-error: 0 0 30rpx rgba(239, 68, 68, 0.4);
+  
+  // 边框半径
+  --ocean-radius-sm: 8rpx;
+  --ocean-radius-md: 12rpx;
+  --ocean-radius-lg: 16rpx;
+  --ocean-radius-xl: 24rpx;
+  --ocean-radius-full: 50%;
+  
+  // 间距
+  --ocean-space-xs: 8rpx;
+  --ocean-space-sm: 16rpx;
+  --ocean-space-md: 24rpx;
+  --ocean-space-lg: 32rpx;
+  --ocean-space-xl: 48rpx;
+  --ocean-space-2xl: 64rpx;
+  
+  // 字体大小
+  --ocean-text-xs: 20rpx;
+  --ocean-text-sm: 24rpx;
+  --ocean-text-base: 28rpx;
+  --ocean-text-lg: 32rpx;
+  --ocean-text-xl: 36rpx;
+  --ocean-text-2xl: 40rpx;
+  --ocean-text-3xl: 48rpx;
+  
+  // 过渡动画
+  --ocean-transition-fast: 0.15s ease;
+  --ocean-transition-normal: 0.3s ease;
+  --ocean-transition-slow: 0.5s ease;
+}
+
+// 全局背景样式
+.ocean-background {
+  background: var(--ocean-gradient-primary);
+  min-height: 100vh;
+  position: relative;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: 
+      radial-gradient(circle at 20% 80%, rgba(79, 209, 199, 0.1) 0%, transparent 50%),
+      radial-gradient(circle at 80% 20%, rgba(96, 165, 250, 0.1) 0%, transparent 50%),
+      radial-gradient(circle at 40% 40%, rgba(16, 185, 129, 0.05) 0%, transparent 50%);
+    pointer-events: none;
+  }
+}
+
+// 玻璃态效果
+.ocean-glass {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(15px);
+  border: 2rpx solid var(--ocean-gray-200);
+  border-radius: var(--ocean-radius-lg);
+}
+
+// 卡片样式
+.ocean-card {
+  @extend .ocean-glass;
+  padding: var(--ocean-space-lg);
+  box-shadow: var(--ocean-shadow-md);
+  transition: all var(--ocean-transition-normal);
+  
+  &:hover {
+    transform: translateY(-4rpx);
+    box-shadow: var(--ocean-shadow-lg);
+    border-color: var(--ocean-gray-300);
+  }
+}
+
+// 按钮样式
+.ocean-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--ocean-space-sm) var(--ocean-space-lg);
+  border-radius: var(--ocean-radius-md);
+  border: none;
+  font-size: var(--ocean-text-base);
+  font-weight: 600;
+  transition: all var(--ocean-transition-normal);
+  cursor: pointer;
+  
+  &.primary {
+    background: var(--ocean-gradient-accent);
+    color: var(--ocean-white);
+    box-shadow: var(--ocean-glow-accent);
+    
+    &:hover {
+      transform: translateY(-2rpx);
+      box-shadow: var(--ocean-shadow-lg), var(--ocean-glow-accent);
+    }
+    
+    &:active {
+      transform: translateY(0);
+    }
+  }
+  
+  &.secondary {
+    background: var(--ocean-glass);
+    color: var(--ocean-gray-800);
+    border: 2rpx solid var(--ocean-gray-300);
+    
+    &:hover {
+      background: var(--ocean-gray-100);
+      border-color: var(--ocean-accent);
+    }
+  }
+  
+  &.success {
+    background: var(--ocean-gradient-success);
+    color: var(--ocean-white);
+    box-shadow: var(--ocean-glow-success);
+  }
+  
+  &.warning {
+    background: var(--ocean-gradient-warning);
+    color: var(--ocean-white);
+    box-shadow: var(--ocean-glow-warning);
+  }
+  
+  &.error {
+    background: var(--ocean-gradient-error);
+    color: var(--ocean-white);
+    box-shadow: var(--ocean-glow-error);
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none !important;
+  }
+}
+
+// 输入框样式
+.ocean-input {
+  background: var(--ocean-glass);
+  border: 2rpx solid var(--ocean-gray-200);
+  border-radius: var(--ocean-radius-md);
+  padding: var(--ocean-space-sm) var(--ocean-space-md);
+  color: var(--ocean-white);
+  font-size: var(--ocean-text-base);
+  transition: all var(--ocean-transition-normal);
+  
+  &:focus {
+    border-color: var(--ocean-accent);
+    box-shadow: 0 0 0 4rpx rgba(79, 209, 199, 0.1);
+    outline: none;
+  }
+  
+  &::placeholder {
+    color: var(--ocean-gray-500);
+  }
+}
+
+// 状态指示器
+.ocean-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ocean-space-xs);
+  padding: 4rpx var(--ocean-space-sm);
+  border-radius: var(--ocean-radius-full);
+  font-size: var(--ocean-text-xs);
+  font-weight: 500;
+  
+  &.online {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--ocean-success);
+    
+    &::before {
+      content: '';
+      width: 8rpx;
+      height: 8rpx;
+      border-radius: 50%;
+      background: var(--ocean-success);
+      animation: pulse 2s infinite;
+    }
+  }
+  
+  &.offline {
+    background: rgba(107, 114, 128, 0.2);
+    color: #6b7280;
+  }
+  
+  &.warning {
+    background: rgba(245, 158, 11, 0.2);
+    color: var(--ocean-warning);
+    
+    &::before {
+      content: '';
+      width: 8rpx;
+      height: 8rpx;
+      border-radius: 50%;
+      background: var(--ocean-warning);
+      animation: pulse 1.5s infinite;
+    }
+  }
+  
+  &.error {
+    background: rgba(239, 68, 68, 0.2);
+    color: var(--ocean-error);
+    
+    &::before {
+      content: '';
+      width: 8rpx;
+      height: 8rpx;
+      border-radius: 50%;
+      background: var(--ocean-error);
+      animation: pulse 1s infinite;
+    }
+  }
+}
+
+// 动画定义
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes wave {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10rpx);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  33% {
+    transform: translateY(-10rpx) rotate(1deg);
+  }
+  66% {
+    transform: translateY(5rpx) rotate(-1deg);
+  }
+}
+
+// 响应式设计
+@media (max-width: 768px) {
+  :root {
+    --ocean-space-xs: 6rpx;
+    --ocean-space-sm: 12rpx;
+    --ocean-space-md: 18rpx;
+    --ocean-space-lg: 24rpx;
+    --ocean-space-xl: 36rpx;
+    --ocean-space-2xl: 48rpx;
+  }
+}
