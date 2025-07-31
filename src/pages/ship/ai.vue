@@ -90,6 +90,47 @@ function getBatteryClass(status: string) {
   }
 }
 
+// 电池预警检查
+function checkBatteryWarning() {
+  if (batteryData.value.isLowBattery) {
+    uni.showModal({
+      title: '电池预警',
+      content: `当前电量仅剩${batteryData.value.main.level}%，建议立即返航充电！\n预计续航时间：${batteryData.value.estimatedTime}`,
+      confirmText: '立即返航',
+      cancelText: '继续航行',
+      success: (res) => {
+        if (res.confirm) {
+          // 触发返航逻辑
+          uni.showToast({
+            title: '正在规划返航路线',
+            icon: 'loading',
+          })
+        }
+      },
+    })
+  }
+}
+
+// 优化建议
+function getOptimizationSuggestions() {
+  const suggestions = []
+
+  if (cumulativeData.value.optimizedSpeed > 10) {
+    suggestions.push('建议降低航速至8-10节以提高能效')
+  }
+
+  if (batteryData.value.main.level < 30) {
+    suggestions.push('电量偏低，建议规划充电计划')
+  }
+
+  const avgEfficiency = cumulativeData.value.totalDistance / cumulativeData.value.totalEnergyConsumption
+  if (avgEfficiency < 3.0) {
+    suggestions.push('能效偏低，建议检查船体状况')
+  }
+
+  return suggestions
+}
+
 // 菜单点击处理
 function handleMenuClick(item: any) {
   if (item.id === activeMenu.value)
@@ -140,8 +181,25 @@ function handleBatteryWarning() {
   }
 }
 
+// 初始化页面
+function initializePage() {
+  // 检查电池预警
+  if (batteryData.value.isLowBattery) {
+    setTimeout(() => {
+      checkBatteryWarning()
+    }, 1000)
+  }
+
+  // 显示优化建议
+  const suggestions = getOptimizationSuggestions()
+  if (suggestions.length > 0) {
+    console.log('AI优化建议:', suggestions)
+  }
+}
+
 onLoad(() => {
   console.log('AI管理页面加载')
+  initializePage()
 })
 </script>
 

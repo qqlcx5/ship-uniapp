@@ -13,8 +13,8 @@ defineOptions({
 })
 
 // 获取屏幕边界到安全区域距离
-let safeAreaInsets
-let systemInfo
+let safeAreaInsets: any
+let systemInfo: any
 
 // #ifdef MP-WEIXIN
 systemInfo = uni.getWindowInfo()
@@ -37,33 +37,154 @@ safeAreaInsets = systemInfo.safeAreaInsets
 const bluetoothStatus = ref('正在搜索蓝牙设备...')
 const isConnected = ref(false)
 const signalStrength = ref(85)
+const isScanning = ref(false)
 
-// 模拟蓝牙连接
+// 可用设备列表
+const availableDevices = ref([
+  { id: '001', name: '主控设备-001', rssi: -45, type: 'primary' },
+  { id: '002', name: '备用设备-002', rssi: -67, type: 'backup' },
+  { id: '003', name: '监控设备-003', rssi: -78, type: 'monitor' }
+])
+
+// 选中的设备
+const selectedDevice = ref(availableDevices.value[0])
+
+// 连接历史
+const connectionHistory = ref([
+  { deviceId: '001', deviceName: '主控设备-001', lastConnected: '2024-01-31 14:30', status: 'success' },
+  { deviceId: '002', deviceName: '备用设备-002', lastConnected: '2024-01-30 09:15', status: 'success' },
+])
+
+// 扫描蓝牙设备
+function scanDevices() {
+  if (isScanning.value) return
+
+  isScanning.value = true
+  bluetoothStatus.value = '正在扫描设备...'
+
+  // 模拟扫描过程
+  setTimeout(() => {
+    isScanning.value = false
+    bluetoothStatus.value = `发现 ${availableDevices.value.length} 个设备`
+
+    // 更新信号强度
+    availableDevices.value.forEach(device => {
+      device.rssi = -40 - Math.random() * 40
+    })
+  }, 3000)
+}
+
+// 选择设备
+function selectDevice(device: any) {
+  selectedDevice.value = device
+  signalStrength.value = Math.max(0, 100 + device.rssi) // 转换为百分比
+}
+
+// 连接设备
 function connectDevice() {
+  if (!selectedDevice.value) {
+    uni.showToast({
+      title: '请选择设备',
+      icon: 'none'
+    })
+    return
+  }
+
   uni.showLoading({
     title: '连接中...',
   })
 
+  // 模拟连接过程
   setTimeout(() => {
     uni.hideLoading()
-    isConnected.value = true
-    bluetoothStatus.value = '设备已连接'
-    uni.showToast({
-      title: '连接成功',
-      icon: 'success',
-    })
 
-    // 连接成功后跳转到手动导航页面
-    setTimeout(() => {
-      uni.navigateTo({
-        url: '/pages/ship/manual',
+    // 模拟连接成功率（90%）
+    if (Math.random() > 0.1) {
+      isConnected.value = true
+      bluetoothStatus.value = '设备已连接'
+
+      // 添加到连接历史
+      const historyItem = {
+        deviceId: selectedDevice.value.id,
+        deviceName: selectedDevice.value.name,
+        lastConnected: new Date().toLocaleString('zh-CN'),
+        status: 'success'
+      }
+
+      const existingIndex = connectionHistory.value.findIndex(h => h.deviceId === selectedDevice.value.id)
+      if (existingIndex >= 0) {
+        connectionHistory.value[existingIndex] = historyItem
+      } else {
+        connectionHistory.value.unshift(historyItem)
+      }
+
+      uni.showToast({
+        title: '连接成功',
+        icon: 'success',
       })
-    }, 1500)
+
+      // 连接成功后跳转到手动导航页面
+      setTimeout(() => {
+        uni.navigateTo({
+          url: '/pages/ship/manual',
+        })
+      }, 1500)
+    } else {
+      // 连接失败
+      uni.showModal({
+        title: '连接失败',
+        content: '无法连接到设备，请检查设备状态或重试',
+        confirmText: '重试',
+        cancelText: '取消',
+        success: (res) => {
+          if (res.confirm) {
+            connectDevice()
+          }
+        }
+      })
+    }
   }, 2000)
+}
+
+// 断开连接
+function disconnectDevice() {
+  isConnected.value = false
+  bluetoothStatus.value = '设备已断开'
+  uni.showToast({
+    title: '已断开连接',
+    icon: 'success'
+  })
+}
+
+// 获取设备类型图标
+function getDeviceIcon(type: string) {
+  switch (type) {
+    case 'primary': return '🎮'
+    case 'backup': return '🔧'
+    case 'monitor': return '📡'
+    default: return '📱'
+  }
+}
+
+// 获取信号强度等级
+function getSignalLevel(rssi: number) {
+  if (rssi > -50) return 'excellent'
+  if (rssi > -60) return 'good'
+  if (rssi > -70) return 'fair'
+  return 'poor'
+}
+
+// 初始化页面
+function initializePage() {
+  // 自动开始扫描设备
+  setTimeout(() => {
+    scanDevices()
+  }, 1000)
 }
 
 onLoad(() => {
   console.log('船舶管理系统登录页面加载')
+  initializePage()
 })
 </script>
 

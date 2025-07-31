@@ -8,6 +8,10 @@
 </route>
 
 <script lang="ts" setup>
+import type { ShipData } from '@/utils/map'
+import LeafletMap from '@/components/LeafletMap/LeafletMap.vue'
+import { MapUtils } from '@/utils/map'
+
 defineOptions({
   name: 'ShipManual',
 })
@@ -46,7 +50,7 @@ const weatherData = ref({
   windSpeed: 12,
   waveHeight: 1.2,
   visibility: 8.5,
-  weather: '多云'
+  weather: '多云',
 })
 
 // 船舶运行状态数据
@@ -56,24 +60,23 @@ const shipStatus = ref({
   power: 850,
   current: 12.3,
   voltage: 24.8,
-  alerts: ['GPS信号良好', '电池状态正常']
+  alerts: ['GPS信号良好', '电池状态正常'],
 })
 
 // 地图中心点（福建海域）
-const mapCenter = ref({
-  latitude: 26.0614,
-  longitude: 119.3061
-})
+const mapCenter = ref<[number, number]>([26.0614, 119.3061])
 
 // 船只数据（6-7条船）
-const ships = ref([
+const ships = ref<ShipData[]>([
   {
     id: 1,
     name: '海巡001',
     latitude: 26.0614,
     longitude: 119.3061,
     heading: 45,
-    status: 'active'
+    status: 'active',
+    speed: 8.5,
+    battery: 85,
   },
   {
     id: 2,
@@ -81,7 +84,9 @@ const ships = ref([
     latitude: 26.0724,
     longitude: 119.3171,
     heading: 120,
-    status: 'active'
+    status: 'active',
+    speed: 12.2,
+    battery: 72,
   },
   {
     id: 3,
@@ -89,7 +94,9 @@ const ships = ref([
     latitude: 26.0504,
     longitude: 119.2951,
     heading: 270,
-    status: 'active'
+    status: 'active',
+    speed: 6.8,
+    battery: 91,
   },
   {
     id: 4,
@@ -97,7 +104,9 @@ const ships = ref([
     latitude: 26.0814,
     longitude: 119.3261,
     heading: 180,
-    status: 'active'
+    status: 'active',
+    speed: 15.3,
+    battery: 68,
   },
   {
     id: 5,
@@ -105,7 +114,9 @@ const ships = ref([
     latitude: 26.0414,
     longitude: 119.2861,
     heading: 90,
-    status: 'active'
+    status: 'active',
+    speed: 9.7,
+    battery: 79,
   },
   {
     id: 6,
@@ -113,7 +124,9 @@ const ships = ref([
     latitude: 26.0914,
     longitude: 119.3461,
     heading: 315,
-    status: 'active'
+    status: 'active',
+    speed: 11.1,
+    battery: 56,
   },
   {
     id: 7,
@@ -121,8 +134,10 @@ const ships = ref([
     latitude: 26.0314,
     longitude: 119.2761,
     heading: 225,
-    status: 'standby'
-  }
+    status: 'standby',
+    speed: 0,
+    battery: 94,
+  },
 ])
 
 // 菜单项配置
@@ -130,16 +145,20 @@ const menuItems = [
   { id: 'manual', icon: '🎮', label: '手动导航', page: '/pages/ship/manual' },
   { id: 'cruise', icon: '🗺️', label: '自动巡航', page: '/pages/ship/cruise' },
   { id: 'ai', icon: '🧠', label: 'AI管理', page: '/pages/ship/ai' },
-  { id: 'management', icon: '⚙️', label: '综合管理', page: '/pages/ship/management' }
+  { id: 'management', icon: '⚙️', label: '综合管理', page: '/pages/ship/management' },
 ]
 
+// 地图实例引用
+const mapRef = ref()
+
 // 摇杆控制处理
-function handleJoystickStart(e: any) {
+function handleJoystickStart(_e: any) {
   isDragging.value = true
 }
 
 function handleJoystickMove(e: any) {
-  if (!isDragging.value) return
+  if (!isDragging.value)
+    return
 
   const touch = e.touches[0]
   const container = e.currentTarget
@@ -155,18 +174,20 @@ function handleJoystickMove(e: any) {
   if (distance <= maxRadius) {
     joystickPosition.value = {
       x: Math.round((deltaX / maxRadius) * 100),
-      y: Math.round((-deltaY / maxRadius) * 100) // 反转Y轴
+      y: Math.round((-deltaY / maxRadius) * 100), // 反转Y轴
     }
-  } else {
+  }
+  else {
     const angle = Math.atan2(deltaY, deltaX)
     joystickPosition.value = {
       x: Math.round(Math.cos(angle) * 100),
-      y: Math.round(-Math.sin(angle) * 100) // 反转Y轴
+      y: Math.round(-Math.sin(angle) * 100), // 反转Y轴
     }
   }
 
-  // 实时更新船舶状态
+  // 实时更新船舶状态和位置
   updateShipStatus()
+  updateShipPosition()
 }
 
 function handleJoystickEnd() {
@@ -183,31 +204,99 @@ function updateShipStatus() {
   shipStatus.value.current = Math.round((12.3 + intensity * 3) * 10) / 10
 }
 
+// 更新船舶位置（模拟实时移动）
+function updateShipPosition() {
+  if (joystickPosition.value.x === 0 && joystickPosition.value.y === 0)
+    return
+
+  const mainShip = ships.value[0] // 主控船舶
+  if (!mainShip)
+    return
+
+  // 计算新的航向
+  const bearing = Math.atan2(joystickPosition.value.x, joystickPosition.value.y) * 180 / Math.PI
+  mainShip.heading = (bearing + 360) % 360
+
+  // 计算移动距离（基于摇杆强度）
+  const intensity = Math.sqrt(joystickPosition.value.x ** 2 + joystickPosition.value.y ** 2) / 100
+  const distance = intensity * 0.001 // 很小的移动距离
+
+  // 计算新位置
+  const [newLat, newLng] = MapUtils.calculateNewPosition(
+    mainShip.latitude,
+    mainShip.longitude,
+    mainShip.heading,
+    distance,
+  )
+
+  mainShip.latitude = newLat
+  mainShip.longitude = newLng
+  mainShip.speed = shipStatus.value.speed
+}
+
 // 菜单点击处理
 function handleMenuClick(item: any) {
-  if (item.id === activeMenu.value) return
+  if (item.id === activeMenu.value)
+    return
 
   activeMenu.value = item.id
   uni.navigateTo({
-    url: item.page
+    url: item.page,
   })
 }
 
-// 地图标记点击处理
-function handleMarkerTap(e: any) {
-  const markerId = e.detail.markerId
-  const ship = ships.value.find(s => s.id === markerId)
-  if (ship) {
-    uni.showModal({
-      title: ship.name,
-      content: `位置: ${ship.latitude.toFixed(4)}, ${ship.longitude.toFixed(4)}\n航向: ${ship.heading}°\n状态: ${ship.status === 'active' ? '活跃' : '待机'}`,
-      showCancel: false
+// 船舶点击处理
+function handleShipClick(ship: ShipData) {
+  uni.showModal({
+    title: ship.name,
+    content: `位置: ${MapUtils.formatCoordinate(ship.latitude, 'lat')}, ${MapUtils.formatCoordinate(ship.longitude, 'lng')}\n航向: ${ship.heading}°\n状态: ${ship.status === 'active' ? '活跃' : ship.status === 'standby' ? '待机' : '离线'}\n速度: ${ship.speed}节\n电量: ${ship.battery}%`,
+    showCancel: false,
+  })
+}
+
+// 地图点击处理
+function handleMapClick(event: { latitude: number, longitude: number }) {
+  console.log('地图点击位置:', event)
+}
+
+// 地图准备就绪
+function handleMapReady(map: any) {
+  console.log('地图初始化完成:', map)
+}
+
+// 模拟实时数据更新
+function startDataSimulation() {
+  setInterval(() => {
+    // 更新天气数据
+    weatherData.value.temperature = 24 + Math.random() * 4 - 2
+    weatherData.value.windSpeed = 12 + Math.random() * 6 - 3
+    weatherData.value.waveHeight = 1.2 + Math.random() * 0.8 - 0.4
+
+    // 更新其他船舶位置（模拟自动移动）
+    ships.value.slice(1).forEach((ship) => {
+      if (ship.status === 'active') {
+        const distance = 0.0005 // 小幅移动
+        const [newLat, newLng] = MapUtils.calculateNewPosition(
+          ship.latitude,
+          ship.longitude,
+          ship.heading,
+          distance,
+        )
+        ship.latitude = newLat
+        ship.longitude = newLng
+
+        // 偶尔改变航向
+        if (Math.random() < 0.1) {
+          ship.heading = (ship.heading + Math.random() * 60 - 30 + 360) % 360
+        }
+      }
     })
-  }
+  }, 2000)
 }
 
 onLoad(() => {
   console.log('手动导航页面加载')
+  startDataSimulation()
 })
 </script>
 
@@ -218,25 +307,45 @@ onLoad(() => {
       <!-- 天气和海况数据 -->
       <view class="weather-section">
         <view class="weather-title">
-          <text class="weather-icon">🌤️</text>
-          <text class="title-text">天气海况</text>
+          <text class="weather-icon">
+            🌤️
+          </text>
+          <text class="title-text">
+            天气海况
+          </text>
         </view>
         <view class="weather-data">
           <view class="weather-item">
-            <text class="label">温度:</text>
-            <text class="value">{{ weatherData.temperature }}°C</text>
+            <text class="label">
+              温度:
+            </text>
+            <text class="value">
+              {{ weatherData.temperature }}°C
+            </text>
           </view>
           <view class="weather-item">
-            <text class="label">风速:</text>
-            <text class="value">{{ weatherData.windSpeed }}m/s</text>
+            <text class="label">
+              风速:
+            </text>
+            <text class="value">
+              {{ weatherData.windSpeed }}m/s
+            </text>
           </view>
           <view class="weather-item">
-            <text class="label">浪高:</text>
-            <text class="value">{{ weatherData.waveHeight }}m</text>
+            <text class="label">
+              浪高:
+            </text>
+            <text class="value">
+              {{ weatherData.waveHeight }}m
+            </text>
           </view>
           <view class="weather-item">
-            <text class="label">能见度:</text>
-            <text class="value">{{ weatherData.visibility }}km</text>
+            <text class="label">
+              能见度:
+            </text>
+            <text class="value">
+              {{ weatherData.visibility }}km
+            </text>
           </view>
         </view>
       </view>
@@ -244,37 +353,65 @@ onLoad(() => {
       <!-- 船舶运行状态数据 -->
       <view class="ship-status-section">
         <view class="status-title">
-          <text class="status-icon">🚢</text>
-          <text class="title-text">船舶状态</text>
+          <text class="status-icon">
+            🚢
+          </text>
+          <text class="title-text">
+            船舶状态
+          </text>
         </view>
         <view class="status-data">
           <view class="status-item">
-            <text class="label">时速:</text>
-            <text class="value">{{ shipStatus.speed }}节</text>
+            <text class="label">
+              时速:
+            </text>
+            <text class="value">
+              {{ shipStatus.speed }}节
+            </text>
           </view>
           <view class="status-item">
-            <text class="label">电量:</text>
-            <text class="value" :class="{ 'warning': shipStatus.battery < 30 }">{{ shipStatus.battery }}%</text>
+            <text class="label">
+              电量:
+            </text>
+            <text class="value" :class="{ warning: shipStatus.battery < 30 }">
+              {{ shipStatus.battery }}%
+            </text>
           </view>
           <view class="status-item">
-            <text class="label">功率:</text>
-            <text class="value">{{ shipStatus.power }}W</text>
+            <text class="label">
+              功率:
+            </text>
+            <text class="value">
+              {{ shipStatus.power }}W
+            </text>
           </view>
           <view class="status-item">
-            <text class="label">电流:</text>
-            <text class="value">{{ shipStatus.current }}A</text>
+            <text class="label">
+              电流:
+            </text>
+            <text class="value">
+              {{ shipStatus.current }}A
+            </text>
           </view>
           <view class="status-item">
-            <text class="label">电压:</text>
-            <text class="value">{{ shipStatus.voltage }}V</text>
+            <text class="label">
+              电压:
+            </text>
+            <text class="value">
+              {{ shipStatus.voltage }}V
+            </text>
           </view>
         </view>
 
         <!-- 重要报警数据 -->
         <view class="alerts-section">
           <view class="alert-title">
-            <text class="alert-icon">⚠️</text>
-            <text class="title-text">状态提醒</text>
+            <text class="alert-icon">
+              ⚠️
+            </text>
+            <text class="title-text">
+              状态提醒
+            </text>
           </view>
           <view class="alerts-list">
             <text
@@ -291,32 +428,15 @@ onLoad(() => {
 
     <!-- 地图区域 -->
     <view class="map-container">
-      <map
-        id="manualMap"
-        class="map"
-        :latitude="mapCenter.latitude"
-        :longitude="mapCenter.longitude"
-        :scale="12"
-        show-location
-        :markers="ships.map(ship => ({
-          id: ship.id,
-          latitude: ship.latitude,
-          longitude: ship.longitude,
-          iconPath: '/static/images/ship-icon.png',
-          width: 40,
-          height: 40,
-          title: ship.name,
-          callout: {
-            content: `${ship.name}\n经度: ${ship.longitude.toFixed(4)}\n纬度: ${ship.latitude.toFixed(4)}\n航向: ${ship.heading}°`,
-            color: '#ffffff',
-            fontSize: 12,
-            borderRadius: 8,
-            bgColor: 'rgba(0,0,0,0.8)',
-            padding: 8,
-            display: 'ALWAYS'
-          }
-        }))"
-        @markertap="handleMarkerTap"
+      <LeafletMap
+        ref="mapRef"
+        :center="mapCenter"
+        :zoom="12"
+        :ships="ships"
+        :interactive="true"
+        @ship-click="handleShipClick"
+        @map-click="handleMapClick"
+        @map-ready="handleMapReady"
       />
     </view>
 
@@ -329,26 +449,40 @@ onLoad(() => {
         @touchend="handleJoystickEnd"
       >
         <!-- 方向指示器 -->
-        <text class="direction-indicator top">前</text>
-        <text class="direction-indicator bottom">后</text>
-        <text class="direction-indicator left">左</text>
-        <text class="direction-indicator right">右</text>
+        <text class="direction-indicator top">
+          前
+        </text>
+        <text class="direction-indicator bottom">
+          后
+        </text>
+        <text class="direction-indicator left">
+          左
+        </text>
+        <text class="direction-indicator right">
+          右
+        </text>
 
         <!-- 摇杆手柄 -->
         <view
           class="joystick-handle"
           :style="{
-            transform: `translate(${joystickPosition.x * 0.6}px, ${-joystickPosition.y * 0.6}px)`
+            transform: `translate(${joystickPosition.x * 0.6}px, ${-joystickPosition.y * 0.6}px)`,
           }"
         >
-          <text class="handle-icon">✛</text>
+          <text class="handle-icon">
+            ✛
+          </text>
         </view>
       </view>
 
       <!-- 控制值显示 -->
       <view class="joystick-values">
-        <text class="value-label">推进: {{ Math.abs(joystickPosition.y) }}%</text>
-        <text class="value-label">转向: {{ Math.abs(joystickPosition.x) }}%</text>
+        <text class="value-label">
+          推进: {{ Math.abs(joystickPosition.y) }}%
+        </text>
+        <text class="value-label">
+          转向: {{ Math.abs(joystickPosition.x) }}%
+        </text>
       </view>
     </view>
 
@@ -359,11 +493,15 @@ onLoad(() => {
           v-for="item in menuItems"
           :key="item.id"
           class="menu-item"
-          :class="{ 'active': activeMenu === item.id }"
+          :class="{ active: activeMenu === item.id }"
           @click="handleMenuClick(item)"
         >
-          <text class="menu-icon">{{ item.icon }}</text>
-          <text class="menu-label">{{ item.label }}</text>
+          <text class="menu-icon">
+            {{ item.icon }}
+          </text>
+          <text class="menu-label">
+            {{ item.label }}
+          </text>
         </view>
       </view>
     </view>
@@ -374,7 +512,7 @@ onLoad(() => {
 .manual-container {
   width: 100vw;
   height: 100vh;
-  background: #0B1426;
+  background: #0b1426;
   position: relative;
   overflow: hidden;
 }
@@ -390,7 +528,8 @@ onLoad(() => {
   max-width: 400rpx;
 }
 
-.weather-section, .ship-status-section {
+.weather-section,
+.ship-status-section {
   background: rgba(0, 0, 0, 0.8);
   backdrop-filter: blur(15px);
   border-radius: 16rpx;
@@ -398,14 +537,18 @@ onLoad(() => {
   border: 2rpx solid rgba(255, 255, 255, 0.2);
 }
 
-.weather-title, .status-title, .alert-title {
+.weather-title,
+.status-title,
+.alert-title {
   display: flex;
   align-items: center;
   gap: 12rpx;
   margin-bottom: 16rpx;
 }
 
-.weather-icon, .status-icon, .alert-icon {
+.weather-icon,
+.status-icon,
+.alert-icon {
   font-size: 24rpx;
 }
 
@@ -415,13 +558,15 @@ onLoad(() => {
   font-weight: 600;
 }
 
-.weather-data, .status-data {
+.weather-data,
+.status-data {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12rpx;
 }
 
-.weather-item, .status-item {
+.weather-item,
+.status-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -433,13 +578,13 @@ onLoad(() => {
 }
 
 .value {
-  color: #4FD1C7;
+  color: #4fd1c7;
   font-size: 20rpx;
   font-weight: 600;
   font-family: monospace;
 
   &.warning {
-    color: #F59E0B;
+    color: #f59e0b;
   }
 }
 
@@ -456,7 +601,7 @@ onLoad(() => {
 }
 
 .alert-item {
-  color: #10B981;
+  color: #10b981;
   font-size: 18rpx;
   padding: 4rpx 8rpx;
   background: rgba(16, 185, 129, 0.1);
@@ -489,19 +634,21 @@ onLoad(() => {
   width: 320rpx;
   height: 320rpx;
   position: relative;
-  background: radial-gradient(circle, rgba(79,209,199,0.1) 0%, rgba(0,0,0,0.8) 70%);
+  background: radial-gradient(circle, rgba(79, 209, 199, 0.1) 0%, rgba(0, 0, 0, 0.8) 70%);
   border-radius: 50%;
-  border: 6rpx solid rgba(79,209,199,0.5);
+  border: 6rpx solid rgba(79, 209, 199, 0.5);
   backdrop-filter: blur(15px);
-  box-shadow: 0 16rpx 48rpx rgba(0,0,0,0.4), inset 0 0 40rpx rgba(79,209,199,0.1);
+  box-shadow:
+    0 16rpx 48rpx rgba(0, 0, 0, 0.4),
+    inset 0 0 40rpx rgba(79, 209, 199, 0.1);
 }
 
 .direction-indicator {
   position: absolute;
-  color: rgba(255,255,255,0.7);
+  color: rgba(255, 255, 255, 0.7);
   font-size: 24rpx;
   font-weight: bold;
-  text-shadow: 0 4rpx 8rpx rgba(0,0,0,0.5);
+  text-shadow: 0 4rpx 8rpx rgba(0, 0, 0, 0.5);
 
   &.top {
     top: 16rpx;
@@ -535,10 +682,12 @@ onLoad(() => {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: linear-gradient(145deg, #4FD1C7, #2DD4BF);
+  background: linear-gradient(145deg, #4fd1c7, #2dd4bf);
   border-radius: 50%;
   border: 6rpx solid white;
-  box-shadow: 0 8rpx 24rpx rgba(0,0,0,0.3), 0 0 30rpx rgba(79,209,199,0.4);
+  box-shadow:
+    0 8rpx 24rpx rgba(0, 0, 0, 0.3),
+    0 0 30rpx rgba(79, 209, 199, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -562,7 +711,7 @@ onLoad(() => {
 
 .value-label {
   display: block;
-  color: #4FD1C7;
+  color: #4fd1c7;
   font-size: 24rpx;
   font-family: monospace;
   margin-bottom: 4rpx;
@@ -603,8 +752,9 @@ onLoad(() => {
   &.active {
     background: rgba(79, 209, 199, 0.2);
 
-    .menu-icon, .menu-label {
-      color: #4FD1C7;
+    .menu-icon,
+    .menu-label {
+      color: #4fd1c7;
     }
   }
 
@@ -628,8 +778,13 @@ onLoad(() => {
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 
 .status-left {
@@ -658,7 +813,7 @@ onLoad(() => {
 }
 
 .control-icon {
-  color: #4FD1C7;
+  color: #4fd1c7;
   font-size: 28rpx;
 }
 
@@ -677,13 +832,13 @@ onLoad(() => {
 .status-dot {
   width: 12rpx;
   height: 12rpx;
-  background: #10B981;
+  background: #10b981;
   border-radius: 50%;
   animation: pulse 2s infinite;
 }
 
 .status-text {
-  color: #10B981;
+  color: #10b981;
   font-size: 20rpx;
 }
 
@@ -720,7 +875,7 @@ onLoad(() => {
 }
 
 .param-value {
-  color: #4FD1C7;
+  color: #4fd1c7;
   font-size: 20rpx;
   font-family: monospace;
 }
@@ -767,19 +922,19 @@ onLoad(() => {
   transition: all 0.3s ease;
 
   &.emergency {
-    background: linear-gradient(135deg, #EF4444, #DC2626);
+    background: linear-gradient(135deg, #ef4444, #dc2626);
   }
 
   &.anchor {
-    background: linear-gradient(135deg, #F59E0B, #D97706);
+    background: linear-gradient(135deg, #f59e0b, #d97706);
   }
 
   &.alarm {
-    background: linear-gradient(135deg, #F97316, #EA580C);
+    background: linear-gradient(135deg, #f97316, #ea580c);
   }
 
   &.home {
-    background: linear-gradient(135deg, #3B82F6, #2563EB);
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
   }
 
   &:active {
@@ -809,19 +964,21 @@ onLoad(() => {
   width: 280rpx;
   height: 280rpx;
   position: relative;
-  background: radial-gradient(circle, rgba(79,209,199,0.1) 0%, rgba(0,0,0,0.8) 70%);
+  background: radial-gradient(circle, rgba(79, 209, 199, 0.1) 0%, rgba(0, 0, 0, 0.8) 70%);
   border-radius: 50%;
-  border: 6rpx solid rgba(79,209,199,0.5);
+  border: 6rpx solid rgba(79, 209, 199, 0.5);
   backdrop-filter: blur(15px);
-  box-shadow: 0 16rpx 48rpx rgba(0,0,0,0.4), inset 0 0 40rpx rgba(79,209,199,0.1);
+  box-shadow:
+    0 16rpx 48rpx rgba(0, 0, 0, 0.4),
+    inset 0 0 40rpx rgba(79, 209, 199, 0.1);
 }
 
 .direction-indicator {
   position: absolute;
-  color: rgba(255,255,255,0.7);
+  color: rgba(255, 255, 255, 0.7);
   font-size: 24rpx;
   font-weight: bold;
-  text-shadow: 0 4rpx 8rpx rgba(0,0,0,0.5);
+  text-shadow: 0 4rpx 8rpx rgba(0, 0, 0, 0.5);
 
   &.top {
     top: 16rpx;
@@ -855,10 +1012,12 @@ onLoad(() => {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: linear-gradient(145deg, #4FD1C7, #2DD4BF);
+  background: linear-gradient(145deg, #4fd1c7, #2dd4bf);
   border-radius: 50%;
   border: 6rpx solid white;
-  box-shadow: 0 8rpx 24rpx rgba(0,0,0,0.3), 0 0 30rpx rgba(79,209,199,0.4);
+  box-shadow:
+    0 8rpx 24rpx rgba(0, 0, 0, 0.3),
+    0 0 30rpx rgba(79, 209, 199, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -882,7 +1041,7 @@ onLoad(() => {
 
 .value-label {
   display: block;
-  color: #4FD1C7;
+  color: #4fd1c7;
   font-size: 24rpx;
   font-family: monospace;
   margin-bottom: 4rpx;
@@ -893,7 +1052,12 @@ onLoad(() => {
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 </style>

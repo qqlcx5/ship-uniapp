@@ -1,0 +1,13 @@
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Waypoint circle -->
+  <circle cx="12" cy="12" r="10" fill="#4FD1C7" stroke="#FFFFFF" stroke-width="2"/>
+  
+  <!-- Inner circle -->
+  <circle cx="12" cy="12" r="6" fill="#2DD4BF"/>
+  
+  <!-- Center dot -->
+  <circle cx="12" cy="12" r="2" fill="#FFFFFF"/>
+  
+  <!-- Waypoint number background -->
+  <circle cx="12" cy="12" r="8" fill="none" stroke="#FFFFFF" stroke-width="1" stroke-dasharray="2,2"/>
+</svg>

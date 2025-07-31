@@ -8,6 +8,10 @@
 </route>
 
 <script lang="ts" setup>
+import type { PathPoint, ShipData } from '@/utils/map'
+import LeafletMap from '@/components/LeafletMap/LeafletMap.vue'
+import { MapUtils } from '@/utils/map'
+
 defineOptions({
   name: 'ShipCruise',
 })
@@ -41,44 +45,79 @@ const cruiseStatus = ref({
   isAutoMode: false,
   currentSpeed: 8.5,
   targetSpeed: 12.0,
-  totalDistance: 12.5,
+  totalDistance: 0,
   estimatedRange: 45.2,
+  isNavigating: false,
+  currentWaypoint: 0,
+  estimatedTime: 0,
 })
 
 // 高级设置面板显示状态
 const showAdvancedSettings = ref(false)
 
 // 地图中心点（福建海域）
-const mapCenter = ref({
-  latitude: 26.0614,
-  longitude: 119.3061,
-})
+const mapCenter = ref<[number, number]>([26.0614, 119.3061])
 
-// 船只数据（单条船）
-const ship = ref({
+// 主控船舶
+const mainShip = ref<ShipData>({
   id: 1,
   name: '海巡001',
   latitude: 26.0614,
   longitude: 119.3061,
   heading: 45,
   status: 'active',
+  speed: 8.5,
+  battery: 85,
 })
 
-// 航点数据
+// 路径点数据
+const pathPoints = ref<PathPoint[]>([])
+
+// 船舶运行状态数据
+const shipStatus = ref({
+  speed: 8.5,
+  battery: 85,
+  power: 850,
+  current: 12.3,
+  voltage: 24.8,
+  alerts: ['GPS信号良好', '自动巡航待命'],
+})
+
+// 地图实例引用
+const mapRef = ref()
+
+// 航点数据（兼容旧代码）
 const waypoints = ref([
   { id: 1, latitude: 26.0614, longitude: 119.3061, name: '起点' },
   { id: 2, latitude: 26.0624, longitude: 119.3071, name: '航点1' },
 ])
 
-// 船舶运行状态数据
-const shipStatus = ref({
-  speed: 8.5,
-  battery: 76,
-  power: 850,
-  current: 12.3,
-  voltage: 24.8,
-  alerts: ['自动模式待机', '航线规划中'],
-})
+// 将航点转换为路径点格式
+function convertWaypointsToPathPoints() {
+  pathPoints.value = waypoints.value.map((wp, index) => ({
+    id: wp.id.toString(),
+    latitude: wp.latitude,
+    longitude: wp.longitude,
+    order: index + 1,
+  }))
+  updateCruiseStatus()
+}
+
+// 更新巡航状态
+function updateCruiseStatus() {
+  if (pathPoints.value.length >= 2) {
+    cruiseStatus.value.totalDistance = MapUtils.calculatePathDistance(pathPoints.value)
+    cruiseStatus.value.estimatedTime = MapUtils.estimateNavigationTime(
+      cruiseStatus.value.totalDistance,
+      cruiseStatus.value.targetSpeed,
+    )
+    cruiseStatus.value.estimatedRange = MapUtils.estimateRemainingRange(
+      shipStatus.value.battery,
+      shipStatus.value.power,
+      cruiseStatus.value.currentSpeed,
+    )
+  }
+}
 
 // 菜单项配置
 const menuItems = [
@@ -110,22 +149,49 @@ function addWaypoint() {
   const newId = waypoints.value.length + 1
   waypoints.value.push({
     id: newId,
-    latitude: mapCenter.value.latitude + (Math.random() - 0.5) * 0.02,
-    longitude: mapCenter.value.longitude + (Math.random() - 0.5) * 0.02,
+    latitude: mapCenter.value[0] + (Math.random() - 0.5) * 0.02,
+    longitude: mapCenter.value[1] + (Math.random() - 0.5) * 0.02,
     name: `航点${newId - 1}`,
   })
-  updateEstimatedRange()
+  convertWaypointsToPathPoints()
   uni.showToast({ title: '航点已添加', icon: 'success' })
 }
 
 function removeWaypoint() {
   if (waypoints.value.length > 2) {
     waypoints.value.pop()
-    updateEstimatedRange()
+    convertWaypointsToPathPoints()
     uni.showToast({ title: '航点已删除', icon: 'success' })
   }
   else {
     uni.showToast({ title: '至少需要2个航点', icon: 'none' })
+  }
+}
+
+// 地图点击添加路径点
+function handleMapClick(event: { latitude: number, longitude: number }) {
+  const newId = pathPoints.value.length + 1
+  pathPoints.value.push({
+    id: `point_${newId}`,
+    latitude: event.latitude,
+    longitude: event.longitude,
+    order: newId,
+  })
+  updateCruiseStatus()
+  uni.showToast({ title: '路径点已添加', icon: 'success' })
+}
+
+// 删除路径点
+function handlePathPointRemove(pointId: string) {
+  const index = pathPoints.value.findIndex(p => p.id === pointId)
+  if (index > -1) {
+    pathPoints.value.splice(index, 1)
+    // 重新排序
+    pathPoints.value.forEach((point, idx) => {
+      point.order = idx + 1
+    })
+    updateCruiseStatus()
+    uni.showToast({ title: '路径点已删除', icon: 'success' })
   }
 }
 
@@ -183,42 +249,18 @@ function updateEstimatedRange() {
   cruiseStatus.value.estimatedRange = Math.round((batteryFactor * 60 / speedFactor) * 10) / 10
 }
 
-// 地图点击添加航点
-function handleMapTap(e: any) {
-  if (!cruiseStatus.value.isAutoMode) {
-    const { latitude, longitude } = e.detail
-    const newId = waypoints.value.length + 1
-    waypoints.value.push({
-      id: newId,
-      latitude,
-      longitude,
-      name: `航点${newId - 1}`,
-    })
-    updateEstimatedRange()
-    uni.showToast({ title: '航点已添加', icon: 'success' })
-  }
+// 船舶点击处理
+function handleShipClick(ship: ShipData) {
+  uni.showModal({
+    title: ship.name,
+    content: `位置: ${MapUtils.formatCoordinate(ship.latitude, 'lat')}, ${MapUtils.formatCoordinate(ship.longitude, 'lng')}\n航向: ${ship.heading}°\n状态: ${ship.status === 'active' ? '活跃' : ship.status === 'standby' ? '待机' : '离线'}\n速度: ${ship.speed}节\n电量: ${ship.battery}%`,
+    showCancel: false,
+  })
 }
 
-// 地图标记点击处理
-function handleMarkerTap(e: any) {
-  const markerId = e.detail.markerId
-  if (markerId === ship.value.id) {
-    uni.showModal({
-      title: ship.value.name,
-      content: `位置: ${ship.value.latitude.toFixed(4)}, ${ship.value.longitude.toFixed(4)}\n航向: ${ship.value.heading}°\n状态: ${ship.value.status === 'active' ? '活跃' : '待机'}`,
-      showCancel: false,
-    })
-  }
-  else {
-    const waypoint = waypoints.value.find(w => w.id === markerId)
-    if (waypoint) {
-      uni.showModal({
-        title: waypoint.name,
-        content: `位置: ${waypoint.latitude.toFixed(4)}, ${waypoint.longitude.toFixed(4)}`,
-        showCancel: false,
-      })
-    }
-  }
+// 地图准备就绪
+function handleMapReady(map: any) {
+  console.log('地图初始化完成:', map)
 }
 
 // 菜单点击处理
@@ -232,8 +274,14 @@ function handleMenuClick(item: any) {
   })
 }
 
+// 初始化数据
+function initializeData() {
+  convertWaypointsToPathPoints()
+}
+
 onLoad(() => {
   console.log('自动巡航页面加载')
+  initializeData()
 })
 </script>
 
@@ -426,54 +474,18 @@ onLoad(() => {
 
     <!-- 地图区域 -->
     <view class="map-container">
-      <map
-        id="cruiseMap"
-        class="map"
-        :latitude="mapCenter.latitude"
-        :longitude="mapCenter.longitude"
-        :scale="12"
-        show-location
-        :markers="[
-          // 船只标记
-          {
-            id: ship.id,
-            latitude: ship.latitude,
-            longitude: ship.longitude,
-            iconPath: '/static/images/ship-icon.png',
-            width: 40,
-            height: 40,
-            title: ship.name,
-            callout: {
-              content: `${ship.name}\n航向: ${ship.heading}°`,
-              color: '#ffffff',
-              fontSize: 12,
-              borderRadius: 8,
-              bgColor: 'rgba(0,0,0,0.8)',
-              padding: 8,
-              display: 'ALWAYS',
-            },
-          },
-          // 航点标记
-          ...waypoints.map((waypoint, index) => ({
-            id: waypoint.id + 100, // 避免与船只ID冲突
-            latitude: waypoint.latitude,
-            longitude: waypoint.longitude,
-            iconPath: index === 0 ? '/static/images/start-point.png'
-              : index === waypoints.length - 1 ? '/static/images/end-point.png'
-                : '/static/images/waypoint.png',
-            width: 30,
-            height: 30,
-            title: waypoint.name,
-          })),
-        ]"
-        :polyline="waypoints.length > 1 ? [{
-          points: waypoints.map(w => ({ latitude: w.latitude, longitude: w.longitude })),
-          color: '#4FD1C7',
-          width: 4,
-          dottedLine: true,
-        }] : []"
-        @markertap="handleMarkerTap"
-        @tap="handleMapTap"
+      <LeafletMap
+        ref="mapRef"
+        :center="mapCenter"
+        :zoom="12"
+        :ships="[mainShip]"
+        :path-points="pathPoints"
+        :show-path="true"
+        :interactive="true"
+        @ship-click="handleShipClick"
+        @map-click="handleMapClick"
+        @path-point-remove="handlePathPointRemove"
+        @map-ready="handleMapReady"
       />
     </view>
 

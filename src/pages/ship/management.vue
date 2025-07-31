@@ -8,6 +8,9 @@
 </route>
 
 <script lang="ts" setup>
+import type { ShipData } from '@/utils/map'
+import { MapUtils } from '@/utils/map'
+
 defineOptions({
   name: 'ShipManagement',
 })
@@ -34,12 +37,60 @@ safeAreaInsets = systemInfo.safeAreaInsets
 // #endif
 
 // 船只列表数据
-const shipList = ref([
-  { id: 1, name: '海巡001', status: 'online', battery: 85, location: '福建海域A区' },
-  { id: 2, name: '海巡002', status: 'online', battery: 72, location: '福建海域B区' },
-  { id: 3, name: '海巡003', status: 'warning', battery: 23, location: '福建海域C区' },
-  { id: 4, name: '海巡004', status: 'offline', battery: 0, location: '维护中' },
+const shipList = ref<ShipData[]>([
+  {
+    id: 1,
+    name: '海巡001',
+    status: 'active',
+    battery: 85,
+    latitude: 26.0614,
+    longitude: 119.3061,
+    heading: 45,
+    speed: 8.5,
+  },
+  {
+    id: 2,
+    name: '海巡002',
+    status: 'active',
+    battery: 72,
+    latitude: 26.0724,
+    longitude: 119.3171,
+    heading: 120,
+    speed: 12.2,
+  },
+  {
+    id: 3,
+    name: '海巡003',
+    status: 'standby',
+    battery: 23,
+    latitude: 26.0504,
+    longitude: 119.2951,
+    heading: 270,
+    speed: 0,
+  },
+  {
+    id: 4,
+    name: '海巡004',
+    status: 'offline',
+    battery: 0,
+    latitude: 26.0814,
+    longitude: 119.3261,
+    heading: 180,
+    speed: 0,
+  },
 ])
+
+// 设备统计数据
+const equipmentStats = ref({
+  totalShips: 4,
+  activeShips: 2,
+  standbyShips: 1,
+  offlineShips: 1,
+  averageBattery: 45,
+  totalDistance: 1247.8,
+  totalOperationTime: 156.7,
+  maintenanceAlerts: 2,
+})
 
 // 人员管理数据
 const crewList = ref([
@@ -60,8 +111,8 @@ const systemSettings = ref({
 // 获取状态样式类
 function getStatusClass(status: string) {
   switch (status) {
-    case 'online': return 'status-online'
-    case 'warning': return 'status-warning'
+    case 'active': return 'status-online'
+    case 'standby': return 'status-warning'
     case 'offline': return 'status-offline'
     default: return 'status-offline'
   }
@@ -74,6 +125,33 @@ function getBatteryClass(battery: number) {
   if (battery > 20)
     return 'warning'
   return 'critical'
+}
+
+// 获取船只位置描述
+function getShipLocation(ship: ShipData): string {
+  return `${MapUtils.formatCoordinate(ship.latitude, 'lat')}, ${MapUtils.formatCoordinate(ship.longitude, 'lng')}`
+}
+
+// 获取船只状态文本
+function getStatusText(status: string): string {
+  switch (status) {
+    case 'active': return '活跃'
+    case 'standby': return '待机'
+    case 'offline': return '离线'
+    default: return '未知'
+  }
+}
+
+// 更新设备统计
+function updateEquipmentStats() {
+  const stats = equipmentStats.value
+  stats.totalShips = shipList.value.length
+  stats.activeShips = shipList.value.filter(s => s.status === 'active').length
+  stats.standbyShips = shipList.value.filter(s => s.status === 'standby').length
+  stats.offlineShips = shipList.value.filter(s => s.status === 'offline').length
+  stats.averageBattery = Math.round(
+    shipList.value.reduce((sum, ship) => sum + ship.battery!, 0) / shipList.value.length,
+  )
 }
 
 // 船只管理操作
@@ -127,8 +205,14 @@ function goBack() {
   uni.navigateBack()
 }
 
+// 初始化页面
+function initializePage() {
+  updateEquipmentStats()
+}
+
 onLoad(() => {
   console.log('综合管理页面加载')
+  initializePage()
 })
 </script>
 
@@ -190,7 +274,7 @@ onLoad(() => {
                   {{ ship.name }}
                 </text>
                 <text class="ship-location">
-                  {{ ship.location }}
+                  {{ getShipLocation(ship) }}
                 </text>
               </view>
               <view class="ship-status">
@@ -212,7 +296,7 @@ onLoad(() => {
                   状态:
                 </text>
                 <text class="detail-value">
-                  {{ ship.status === 'online' ? '在线' : ship.status === 'warning' ? '警告' : '离线' }}
+                  {{ getStatusText(ship.status) }}
                 </text>
               </view>
             </view>
