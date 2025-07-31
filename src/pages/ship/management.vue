@@ -8,8 +8,35 @@
 </route>
 
 <script lang="ts" setup>
-import type { ShipData } from '@/utils/map'
-import { MapUtils } from '@/utils/map'
+interface ShipData {
+  id: number
+  name: string
+  latitude: number
+  longitude: number
+  heading: number
+  status: 'active' | 'idle' | 'warning' | 'offline'
+  speed?: number
+  battery?: number
+}
+
+interface CrewMember {
+  id: number
+  name: string
+  role: string
+  status: 'online' | 'offline' | 'busy'
+  avatar: string
+  lastActive?: string
+  permissions?: string[]
+}
+
+interface SystemSetting {
+  id: string
+  name: string
+  value: any
+  type: 'boolean' | 'number' | 'string' | 'select'
+  options?: string[]
+  description?: string
+}
 
 defineOptions({
   name: 'ShipManagement',
@@ -61,7 +88,7 @@ const shipList = ref<ShipData[]>([
   {
     id: 3,
     name: '海巡003',
-    status: 'standby',
+    status: 'idle',
     battery: 23,
     latitude: 26.0504,
     longitude: 119.2951,
@@ -93,20 +120,29 @@ const equipmentStats = ref({
 })
 
 // 人员管理数据
-const crewList = ref([
-  { id: 1, name: '张船长', role: '船长', status: 'online', avatar: 'Z' },
-  { id: 2, name: '李工程师', role: '工程师', status: 'online', avatar: 'L' },
-  { id: 3, name: '王技师', role: '技师', status: 'offline', avatar: 'W' },
-  { id: 4, name: '陈操作员', role: '操作员', status: 'online', avatar: 'C' },
+const crewList = ref<CrewMember[]>([
+  { id: 1, name: '张船长', role: '船长', status: 'online', avatar: 'Z', lastActive: '刚刚', permissions: ['全部权限'] },
+  { id: 2, name: '李工程师', role: '工程师', status: 'online', avatar: 'L', lastActive: '5分钟前', permissions: ['设备管理', '数据分析'] },
+  { id: 3, name: '王技师', role: '技师', status: 'offline', avatar: 'W', lastActive: '2小时前', permissions: ['维护管理'] },
+  { id: 4, name: '陈操作员', role: '操作员', status: 'online', avatar: 'C', lastActive: '1分钟前', permissions: ['基础操作'] },
 ])
 
 // 系统设置数据
-const systemSettings = ref({
-  autoMode: true,
-  nightMode: false,
-  alertSound: true,
-  dataSync: true,
-})
+const systemSettings = ref<SystemSetting[]>([
+  { id: 'autoMode', name: '自动模式', value: true, type: 'boolean', description: '启用自动巡航模式' },
+  { id: 'maxSpeed', name: '最大速度', value: 15, type: 'number', description: '船只最大航行速度（节）' },
+  { id: 'batteryWarning', name: '电池预警阈值', value: 20, type: 'number', description: '电池电量预警百分比' },
+  { id: 'language', name: '系统语言', value: '中文', type: 'select', options: ['中文', 'English'], description: '系统界面语言' },
+  { id: 'theme', name: '主题模式', value: '海洋蓝', type: 'select', options: ['海洋蓝', '深海黑', '经典白'], description: '系统主题颜色' },
+])
+
+// 地图工具函数
+const MapUtils = {
+  formatCoordinate(coord: number, type: 'lat' | 'lng'): string {
+    const direction = type === 'lat' ? (coord >= 0 ? 'N' : 'S') : (coord >= 0 ? 'E' : 'W')
+    return `${Math.abs(coord).toFixed(4)}°${direction}`
+  },
+}
 
 // 获取状态样式类
 function getStatusClass(status: string) {
@@ -147,7 +183,7 @@ function updateEquipmentStats() {
   const stats = equipmentStats.value
   stats.totalShips = shipList.value.length
   stats.activeShips = shipList.value.filter(s => s.status === 'active').length
-  stats.standbyShips = shipList.value.filter(s => s.status === 'standby').length
+  stats.standbyShips = shipList.value.filter(s => s.status === 'idle').length
   stats.offlineShips = shipList.value.filter(s => s.status === 'offline').length
   stats.averageBattery = Math.round(
     shipList.value.reduce((sum, ship) => sum + ship.battery!, 0) / shipList.value.length,
@@ -192,13 +228,39 @@ function handleCrewAction(crew: any, action: string) {
 }
 
 // 系统设置切换
-function toggleSetting(key: string) {
-  systemSettings.value[key] = !systemSettings.value[key]
-  uni.showToast({
-    title: `${key}已${systemSettings.value[key] ? '开启' : '关闭'}`,
-    icon: 'success',
-  })
+function toggleSetting(settingId: string, value?: boolean) {
+  const setting = systemSettings.value.find(s => s.id === settingId)
+  if (setting) {
+    setting.value = value !== undefined ? value : !setting.value
+    uni.showToast({
+      title: `${setting.name}已${setting.value ? '开启' : '关闭'}`,
+      icon: 'success',
+    })
+  }
 }
+
+// 更新设置值
+function updateSetting(settingId: string, value: any) {
+  const setting = systemSettings.value.find(s => s.id === settingId)
+  if (setting) {
+    setting.value = value
+    uni.showToast({ title: '设置已更新', icon: 'success' })
+  }
+}
+
+// 获取设置值
+function getSettingValue(settingId: string) {
+  const setting = systemSettings.value.find(s => s.id === settingId)
+  return setting ? setting.value : false
+}
+
+// 为了兼容模板，创建一个计算属性
+const settingsCompat = computed(() => ({
+  autoMode: getSettingValue('autoMode'),
+  nightMode: getSettingValue('nightMode'),
+  alertSound: getSettingValue('alertSound'),
+  dataSync: getSettingValue('dataSync'),
+}))
 
 // 返回主控台
 function goBack() {
@@ -412,7 +474,7 @@ onLoad(() => {
               </text>
             </view>
             <switch
-              :checked="systemSettings.autoMode"
+              :checked="settingsCompat.autoMode"
               color="#4FD1C7"
               @change="toggleSetting('autoMode')"
             />
@@ -428,7 +490,7 @@ onLoad(() => {
               </text>
             </view>
             <switch
-              :checked="systemSettings.nightMode"
+              :checked="settingsCompat.nightMode"
               color="#4FD1C7"
               @change="toggleSetting('nightMode')"
             />
@@ -444,7 +506,7 @@ onLoad(() => {
               </text>
             </view>
             <switch
-              :checked="systemSettings.alertSound"
+              :checked="settingsCompat.alertSound"
               color="#4FD1C7"
               @change="toggleSetting('alertSound')"
             />
@@ -460,7 +522,7 @@ onLoad(() => {
               </text>
             </view>
             <switch
-              :checked="systemSettings.dataSync"
+              :checked="settingsCompat.dataSync"
               color="#4FD1C7"
               @change="toggleSetting('dataSync')"
             />

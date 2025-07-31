@@ -38,12 +38,30 @@ const bluetoothStatus = ref('正在搜索蓝牙设备...')
 const isConnected = ref(false)
 const signalStrength = ref(85)
 const isScanning = ref(false)
+const isConnecting = ref(false)
+const connectionAttempts = ref(0)
+const maxConnectionAttempts = 3
+
+// 蓝牙适配器状态
+const bluetoothAdapterState = ref({
+  available: true,
+  discovering: false,
+  powered: true,
+})
+
+// 连接质量监控
+const connectionQuality = ref({
+  latency: 0, // 延迟（毫秒）
+  packetLoss: 0, // 丢包率（百分比）
+  dataRate: 0, // 数据传输率（KB/s）
+  lastUpdate: new Date(),
+})
 
 // 可用设备列表
 const availableDevices = ref([
   { id: '001', name: '主控设备-001', rssi: -45, type: 'primary' },
   { id: '002', name: '备用设备-002', rssi: -67, type: 'backup' },
-  { id: '003', name: '监控设备-003', rssi: -78, type: 'monitor' }
+  { id: '003', name: '监控设备-003', rssi: -78, type: 'monitor' },
 ])
 
 // 选中的设备
@@ -57,7 +75,8 @@ const connectionHistory = ref([
 
 // 扫描蓝牙设备
 function scanDevices() {
-  if (isScanning.value) return
+  if (isScanning.value)
+    return
 
   isScanning.value = true
   bluetoothStatus.value = '正在扫描设备...'
@@ -68,7 +87,7 @@ function scanDevices() {
     bluetoothStatus.value = `发现 ${availableDevices.value.length} 个设备`
 
     // 更新信号强度
-    availableDevices.value.forEach(device => {
+    availableDevices.value.forEach((device) => {
       device.rssi = -40 - Math.random() * 40
     })
   }, 3000)
@@ -85,10 +104,18 @@ function connectDevice() {
   if (!selectedDevice.value) {
     uni.showToast({
       title: '请选择设备',
-      icon: 'none'
+      icon: 'none',
     })
     return
   }
+
+  if (isConnecting.value) {
+    return
+  }
+
+  isConnecting.value = true
+  connectionAttempts.value++
+  bluetoothStatus.value = `正在连接... (${connectionAttempts.value}/${maxConnectionAttempts})`
 
   uni.showLoading({
     title: '连接中...',
@@ -97,24 +124,38 @@ function connectDevice() {
   // 模拟连接过程
   setTimeout(() => {
     uni.hideLoading()
+    isConnecting.value = false
 
-    // 模拟连接成功率（90%）
-    if (Math.random() > 0.1) {
+    // 模拟连接成功率（根据尝试次数调整）
+    const successRate = Math.max(0.6, 0.9 - (connectionAttempts.value - 1) * 0.1)
+
+    if (Math.random() < successRate) {
+      // 连接成功
       isConnected.value = true
       bluetoothStatus.value = '设备已连接'
+      connectionAttempts.value = 0
+
+      // 初始化连接质量监控
+      connectionQuality.value = {
+        latency: Math.floor(Math.random() * 50) + 10, // 10-60ms
+        packetLoss: Math.random() * 2, // 0-2%
+        dataRate: Math.floor(Math.random() * 100) + 50, // 50-150 KB/s
+        lastUpdate: new Date(),
+      }
 
       // 添加到连接历史
       const historyItem = {
         deviceId: selectedDevice.value.id,
         deviceName: selectedDevice.value.name,
         lastConnected: new Date().toLocaleString('zh-CN'),
-        status: 'success'
+        status: 'success',
       }
 
       const existingIndex = connectionHistory.value.findIndex(h => h.deviceId === selectedDevice.value.id)
       if (existingIndex >= 0) {
         connectionHistory.value[existingIndex] = historyItem
-      } else {
+      }
+      else {
         connectionHistory.value.unshift(historyItem)
       }
 
@@ -123,36 +164,97 @@ function connectDevice() {
         icon: 'success',
       })
 
+      // 开始连接质量监控
+      startConnectionMonitoring()
+
       // 连接成功后跳转到手动导航页面
       setTimeout(() => {
         uni.navigateTo({
           url: '/pages/ship/manual',
         })
       }, 1500)
-    } else {
+    }
+    else {
       // 连接失败
-      uni.showModal({
-        title: '连接失败',
-        content: '无法连接到设备，请检查设备状态或重试',
-        confirmText: '重试',
-        cancelText: '取消',
-        success: (res) => {
-          if (res.confirm) {
-            connectDevice()
-          }
-        }
-      })
+      if (connectionAttempts.value >= maxConnectionAttempts) {
+        // 达到最大尝试次数
+        connectionAttempts.value = 0
+        bluetoothStatus.value = '连接失败，请检查设备'
+
+        uni.showModal({
+          title: '连接失败',
+          content: '多次尝试连接失败，请检查设备状态、信号强度或重新扫描设备',
+          confirmText: '重新扫描',
+          cancelText: '取消',
+          success: (res) => {
+            if (res.confirm) {
+              scanDevices()
+            }
+          },
+        })
+      }
+      else {
+        // 还可以重试
+        bluetoothStatus.value = `连接失败，准备重试...`
+
+        uni.showModal({
+          title: '连接失败',
+          content: `连接失败 (${connectionAttempts.value}/${maxConnectionAttempts})，是否重试？`,
+          confirmText: '重试',
+          cancelText: '取消',
+          success: (res) => {
+            if (res.confirm) {
+              setTimeout(() => connectDevice(), 1000)
+            }
+            else {
+              connectionAttempts.value = 0
+              bluetoothStatus.value = '连接已取消'
+            }
+          },
+        })
+      }
     }
   }, 2000)
+}
+
+// 开始连接质量监控
+function startConnectionMonitoring() {
+  const monitoringInterval = setInterval(() => {
+    if (!isConnected.value) {
+      clearInterval(monitoringInterval)
+      return
+    }
+
+    // 模拟连接质量数据更新
+    connectionQuality.value = {
+      latency: Math.floor(Math.random() * 30) + 15, // 15-45ms
+      packetLoss: Math.random() * 1.5, // 0-1.5%
+      dataRate: Math.floor(Math.random() * 50) + 75, // 75-125 KB/s
+      lastUpdate: new Date(),
+    }
+
+    // 检查连接质量，如果太差则警告
+    if (connectionQuality.value.latency > 100 || connectionQuality.value.packetLoss > 5) {
+      bluetoothStatus.value = '连接质量较差'
+    }
+    else if (connectionQuality.value.latency > 50 || connectionQuality.value.packetLoss > 2) {
+      bluetoothStatus.value = '连接质量一般'
+    }
+    else {
+      bluetoothStatus.value = '连接质量良好'
+    }
+  }, 5000) // 每5秒更新一次
 }
 
 // 断开连接
 function disconnectDevice() {
   isConnected.value = false
   bluetoothStatus.value = '设备已断开'
+  connectionAttempts.value = 0
+
   uni.showToast({
     title: '已断开连接',
-    icon: 'success'
+    icon: 'success',
   })
 }
 
@@ -168,9 +270,12 @@ function getDeviceIcon(type: string) {
 
 // 获取信号强度等级
 function getSignalLevel(rssi: number) {
-  if (rssi > -50) return 'excellent'
-  if (rssi > -60) return 'good'
-  if (rssi > -70) return 'fair'
+  if (rssi > -50)
+    return 'excellent'
+  if (rssi > -60)
+    return 'good'
+  if (rssi > -70)
+    return 'fair'
   return 'poor'
 }
 

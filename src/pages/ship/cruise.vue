@@ -249,18 +249,43 @@ function updateEstimatedRange() {
   cruiseStatus.value.estimatedRange = Math.round((batteryFactor * 60 / speedFactor) * 10) / 10
 }
 
+// 获取状态文本
+function getStatusText(status: string): string {
+  const statusMap = {
+    active: '航行中',
+    idle: '待机',
+    warning: '警告',
+    offline: '离线',
+  }
+  return statusMap[status as keyof typeof statusMap] || '未知'
+}
+
 // 船舶点击处理
 function handleShipClick(ship: ShipData) {
   uni.showModal({
     title: ship.name,
-    content: `位置: ${MapUtils.formatCoordinate(ship.latitude, 'lat')}, ${MapUtils.formatCoordinate(ship.longitude, 'lng')}\n航向: ${ship.heading}°\n状态: ${ship.status === 'active' ? '活跃' : ship.status === 'standby' ? '待机' : '离线'}\n速度: ${ship.speed}节\n电量: ${ship.battery}%`,
+    content: `位置: ${MapUtils.formatCoordinate(ship.latitude, 'lat')}, ${MapUtils.formatCoordinate(ship.longitude, 'lng')}\n航向: ${ship.heading}°\n状态: ${getStatusText(ship.status)}\n速度: ${ship.speed}节\n电量: ${ship.battery}%`,
     showCancel: false,
   })
 }
 
 // 地图准备就绪
-function handleMapReady(map: any) {
-  console.log('地图初始化完成:', map)
+function handleMapReady() {
+  console.log('地图初始化完成')
+}
+
+// 获取路径点在地图上的位置（简化实现）
+function getPointPosition(point: PathPoint) {
+  // 这里应该根据地图的实际坐标转换来计算
+  // 简化实现，返回固定位置
+  return { x: 100, y: 100 }
+}
+
+// 删除路径点（简化版本）
+function removePathPoint(index: number) {
+  pathPoints.value.splice(index, 1)
+  updateCruiseStatus()
+  uni.showToast({ title: '路径点已删除', icon: 'success' })
 }
 
 // 菜单点击处理
@@ -487,6 +512,22 @@ onLoad(() => {
         @path-point-remove="handlePathPointRemove"
         @map-ready="handleMapReady"
       />
+
+      <!-- 路径点标记 -->
+      <view
+        v-for="(point, index) in pathPoints"
+        :key="point.id"
+        class="path-point-marker"
+        :style="{
+          left: `${getPointPosition(point).x}px`,
+          top: `${getPointPosition(point).y}px`,
+        }"
+        @click="removePathPoint(index)"
+      >
+        <text class="point-number">
+          {{ index + 1 }}
+        </text>
+      </view>
     </view>
 
     <!-- 底部菜单栏 -->
@@ -689,8 +730,8 @@ onLoad(() => {
 }
 
 .control-btn {
-  width: 88rpx;
-  height: 88rpx;
+  width: 120rpx;
+  height: 120rpx;
   border-radius: 24rpx;
   border: none;
   display: flex;
@@ -699,6 +740,7 @@ onLoad(() => {
   backdrop-filter: blur(15px);
   border: 4rpx solid rgba(255, 255, 255, 0.2);
   transition: all 0.3s ease;
+  cursor: pointer;
 
   &.power {
     background: linear-gradient(135deg, #10b981, #059669);
@@ -732,7 +774,7 @@ onLoad(() => {
 
 .btn-icon {
   color: white;
-  font-size: 32rpx;
+  font-size: 40rpx;
 }
 
 .advanced-panel {
@@ -751,8 +793,8 @@ onLoad(() => {
 }
 
 .advanced-btn {
-  width: 288rpx;
-  height: 80rpx;
+  width: 320rpx;
+  height: 100rpx;
   border-radius: 16rpx;
   border: none;
   display: flex;
@@ -763,6 +805,7 @@ onLoad(() => {
   backdrop-filter: blur(15px);
   border: 2rpx solid rgba(255, 255, 255, 0.2);
   transition: all 0.3s ease;
+  cursor: pointer;
 
   &.clear {
     background: linear-gradient(135deg, #ef4444, #dc2626);
@@ -787,8 +830,70 @@ onLoad(() => {
 
 .btn-text {
   color: white;
-  font-size: 24rpx;
+  font-size: 28rpx;
   font-weight: 500;
+}
+
+// 速度控制样式
+.speed-control {
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 16rpx;
+  padding: 20rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.2);
+}
+
+.speed-title {
+  color: white;
+  font-size: 24rpx;
+  text-align: center;
+  margin-bottom: 16rpx;
+  font-weight: 500;
+}
+
+.speed-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.speed-btn {
+  width: 60rpx;
+  height: 60rpx;
+  border-radius: 12rpx;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(15px);
+  border: 2rpx solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+  cursor: pointer;
+
+  &.decrease {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+  }
+
+  &.increase {
+    background: linear-gradient(135deg, #10b981, #059669);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+
+  .btn-icon {
+    font-size: 24rpx;
+  }
+}
+
+.speed-value {
+  color: #4fd1c7;
+  font-size: 28rpx;
+  font-weight: bold;
+  font-family: monospace;
+  text-align: center;
+  min-width: 120rpx;
 }
 
 .map-container {
@@ -848,14 +953,14 @@ onLoad(() => {
 }
 
 .menu-icon {
-  font-size: 32rpx;
+  font-size: 40rpx;
   margin-bottom: 8rpx;
   color: rgba(255, 255, 255, 0.7);
   transition: color 0.3s ease;
 }
 
 .menu-label {
-  font-size: 20rpx;
+  font-size: 22rpx;
   color: rgba(255, 255, 255, 0.7);
   font-weight: 500;
   transition: color 0.3s ease;

@@ -8,9 +8,16 @@
 </route>
 
 <script lang="ts" setup>
-import type { ShipData } from '@/utils/map'
-import LeafletMap from '@/components/LeafletMap/LeafletMap.vue'
-import { MapUtils } from '@/utils/map'
+interface ShipData {
+  id: number
+  name: string
+  latitude: number
+  longitude: number
+  heading: number
+  status: 'active' | 'idle' | 'warning' | 'offline'
+  speed?: number
+  battery?: number
+}
 
 defineOptions({
   name: 'ShipManual',
@@ -44,14 +51,56 @@ const activeMenu = ref('manual')
 const joystickPosition = ref({ x: 0, y: 0 })
 const isDragging = ref(false)
 
+// 方向控制状态
+const directionControl = ref({
+  forward: false,
+  backward: false,
+  left: false,
+  right: false,
+})
+
 // 天气和海况数据
 const weatherData = ref({
   temperature: 24,
+  condition: '多云',
   windSpeed: 12,
+  windDirection: '东南',
+  windLevel: 3,
   waveHeight: 1.2,
+  seaCondition: 2,
   visibility: 8.5,
-  weather: '多云',
+  humidity: 68,
+  pressure: 1015,
 })
+
+// 连接状态
+const bluetoothConnected = ref(true)
+const gpsConnected = ref(true)
+
+// 地图工具函数
+const MapUtils = {
+  // 计算新位置
+  calculateNewPosition(lat: number, lng: number, heading: number, distance: number): [number, number] {
+    const R = 6371000 // 地球半径（米）
+    const d = distance
+    const brng = heading * Math.PI / 180 // 转换为弧度
+
+    const lat1 = lat * Math.PI / 180
+    const lng1 = lng * Math.PI / 180
+
+    const lat2 = Math.asin(Math.sin(lat1) * Math.cos(d / R)
+      + Math.cos(lat1) * Math.sin(d / R) * Math.cos(brng))
+    const lng2 = lng1 + Math.atan2(Math.sin(brng) * Math.sin(d / R) * Math.cos(lat1), Math.cos(d / R) - Math.sin(lat1) * Math.sin(lat2))
+
+    return [lat2 * 180 / Math.PI, lng2 * 180 / Math.PI]
+  },
+
+  // 格式化坐标
+  formatCoordinate(coord: number, type: 'lat' | 'lng'): string {
+    const direction = type === 'lat' ? (coord >= 0 ? 'N' : 'S') : (coord >= 0 ? 'E' : 'W')
+    return `${Math.abs(coord).toFixed(4)}°${direction}`
+  },
+}
 
 // 船舶运行状态数据
 const shipStatus = ref({
@@ -134,7 +183,7 @@ const ships = ref<ShipData[]>([
     latitude: 26.0314,
     longitude: 119.2761,
     heading: 225,
-    status: 'standby',
+    status: 'idle',
     speed: 0,
     battery: 94,
   },
@@ -152,23 +201,31 @@ const menuItems = [
 const mapRef = ref()
 
 // 摇杆控制处理
-function handleJoystickStart(_e: any) {
+function handleJoystickStart(e: any) {
   isDragging.value = true
+  e.preventDefault()
 }
 
 function handleJoystickMove(e: any) {
   if (!isDragging.value)
     return
 
-  const touch = e.touches[0]
-  const container = e.currentTarget
-  const rect = container.getBoundingClientRect()
-  const centerX = rect.width / 2
-  const centerY = rect.height / 2
-  const maxRadius = rect.width / 2 - 25 // 减去手柄半径
+  e.preventDefault()
 
-  const deltaX = touch.clientX - rect.left - centerX
-  const deltaY = touch.clientY - rect.top - centerY
+  // UniApp中使用changedTouches
+  const touch = e.changedTouches[0] || e.touches[0]
+  if (!touch)
+    return
+
+  // 使用固定的摇杆容器尺寸进行计算
+  const containerSize = 320 // rpx转换为px，大约160px
+  const centerX = containerSize / 2
+  const centerY = containerSize / 2
+  const maxRadius = containerSize / 2 - 60 // 减去手柄半径
+
+  // 简化计算，使用相对位置
+  const deltaX = (touch.clientX - centerX)
+  const deltaY = (touch.clientY - centerY)
   const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
 
   if (distance <= maxRadius) {
@@ -190,9 +247,40 @@ function handleJoystickMove(e: any) {
   updateShipPosition()
 }
 
-function handleJoystickEnd() {
+function handleJoystickEnd(e: any) {
   isDragging.value = false
   joystickPosition.value = { x: 0, y: 0 }
+  e.preventDefault()
+}
+
+// 方向控制函数
+function handleDirectionControl(direction: string, isPressed: boolean) {
+  directionControl.value[direction as keyof typeof directionControl.value] = isPressed
+
+  // 根据按下的方向更新摇杆位置
+  let x = 0; let y = 0
+
+  if (directionControl.value.left)
+    x -= 100
+  if (directionControl.value.right)
+    x += 100
+  if (directionControl.value.forward)
+    y += 100
+  if (directionControl.value.backward)
+    y -= 100
+
+  // 限制在圆形范围内
+  const distance = Math.sqrt(x * x + y * y)
+  if (distance > 100) {
+    x = (x / distance) * 100
+    y = (y / distance) * 100
+  }
+
+  joystickPosition.value = { x: Math.round(x), y: Math.round(y) }
+
+  // 更新船舶状态
+  updateShipStatus()
+  updateShipPosition()
 }
 
 // 更新船舶状态
@@ -245,11 +333,22 @@ function handleMenuClick(item: any) {
   })
 }
 
+// 获取状态文本
+function getStatusText(status: string): string {
+  const statusMap = {
+    active: '航行中',
+    idle: '待机',
+    warning: '警告',
+    offline: '离线',
+  }
+  return statusMap[status as keyof typeof statusMap] || '未知'
+}
+
 // 船舶点击处理
 function handleShipClick(ship: ShipData) {
   uni.showModal({
     title: ship.name,
-    content: `位置: ${MapUtils.formatCoordinate(ship.latitude, 'lat')}, ${MapUtils.formatCoordinate(ship.longitude, 'lng')}\n航向: ${ship.heading}°\n状态: ${ship.status === 'active' ? '活跃' : ship.status === 'standby' ? '待机' : '离线'}\n速度: ${ship.speed}节\n电量: ${ship.battery}%`,
+    content: `位置: ${MapUtils.formatCoordinate(ship.latitude, 'lat')}, ${MapUtils.formatCoordinate(ship.longitude, 'lng')}\n航向: ${ship.heading}°\n状态: ${getStatusText(ship.status)}\n速度: ${ship.speed}节\n电量: ${ship.battery}%`,
     showCancel: false,
   })
 }
@@ -260,8 +359,8 @@ function handleMapClick(event: { latitude: number, longitude: number }) {
 }
 
 // 地图准备就绪
-function handleMapReady(map: any) {
-  console.log('地图初始化完成:', map)
+function handleMapReady() {
+  console.log('地图初始化完成')
 }
 
 // 模拟实时数据更新
@@ -433,7 +532,6 @@ onLoad(() => {
         :center="mapCenter"
         :zoom="12"
         :ships="ships"
-        :interactive="true"
         @ship-click="handleShipClick"
         @map-click="handleMapClick"
         @map-ready="handleMapReady"
@@ -447,20 +545,41 @@ onLoad(() => {
         @touchstart="handleJoystickStart"
         @touchmove="handleJoystickMove"
         @touchend="handleJoystickEnd"
+        @touchcancel="handleJoystickEnd"
       >
-        <!-- 方向指示器 -->
-        <text class="direction-indicator top">
+        <!-- 方向控制按钮 -->
+        <button
+          class="direction-btn top"
+          @touchstart="handleDirectionControl('forward', true)"
+          @touchend="handleDirectionControl('forward', false)"
+          @touchcancel="handleDirectionControl('forward', false)"
+        >
           前
-        </text>
-        <text class="direction-indicator bottom">
+        </button>
+        <button
+          class="direction-btn bottom"
+          @touchstart="handleDirectionControl('backward', true)"
+          @touchend="handleDirectionControl('backward', false)"
+          @touchcancel="handleDirectionControl('backward', false)"
+        >
           后
-        </text>
-        <text class="direction-indicator left">
+        </button>
+        <button
+          class="direction-btn left"
+          @touchstart="handleDirectionControl('left', true)"
+          @touchend="handleDirectionControl('left', false)"
+          @touchcancel="handleDirectionControl('left', false)"
+        >
           左
-        </text>
-        <text class="direction-indicator right">
+        </button>
+        <button
+          class="direction-btn right"
+          @touchstart="handleDirectionControl('right', true)"
+          @touchend="handleDirectionControl('right', false)"
+          @touchcancel="handleDirectionControl('right', false)"
+        >
           右
-        </text>
+        </button>
 
         <!-- 摇杆手柄 -->
         <view
@@ -909,17 +1028,18 @@ onLoad(() => {
 }
 
 .control-button {
-  width: 88rpx;
-  height: 88rpx;
+  width: 120rpx;
+  height: 120rpx;
   border-radius: 24rpx;
   border: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 32rpx;
+  font-size: 40rpx;
   backdrop-filter: blur(15px);
   border: 4rpx solid rgba(255, 255, 255, 0.2);
   transition: all 0.3s ease;
+  cursor: pointer;
 
   &.emergency {
     background: linear-gradient(135deg, #ef4444, #dc2626);
@@ -961,8 +1081,8 @@ onLoad(() => {
 }
 
 .joystick-container {
-  width: 280rpx;
-  height: 280rpx;
+  width: 320rpx;
+  height: 320rpx;
   position: relative;
   background: radial-gradient(circle, rgba(79, 209, 199, 0.1) 0%, rgba(0, 0, 0, 0.8) 70%);
   border-radius: 50%;
@@ -971,43 +1091,59 @@ onLoad(() => {
   box-shadow:
     0 16rpx 48rpx rgba(0, 0, 0, 0.4),
     inset 0 0 40rpx rgba(79, 209, 199, 0.1);
+  cursor: pointer;
 }
 
-.direction-indicator {
+.direction-btn {
   position: absolute;
-  color: rgba(255, 255, 255, 0.7);
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  border: 3rpx solid rgba(255, 255, 255, 0.3);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
+  color: rgba(255, 255, 255, 0.8);
   font-size: 24rpx;
   font-weight: bold;
-  text-shadow: 0 4rpx 8rpx rgba(0, 0, 0, 0.5);
+  text-shadow: 0 2rpx 4rpx rgba(0, 0, 0, 0.5);
+  transition: all 0.2s ease;
+  cursor: pointer;
+
+  &:active {
+    background: rgba(79, 209, 199, 0.3);
+    border-color: rgba(79, 209, 199, 0.6);
+    color: white;
+    transform: scale(0.95);
+  }
 
   &.top {
-    top: 16rpx;
+    top: 20rpx;
     left: 50%;
     transform: translateX(-50%);
   }
 
   &.bottom {
-    bottom: 16rpx;
+    bottom: 20rpx;
     left: 50%;
     transform: translateX(-50%);
   }
 
   &.left {
-    left: 16rpx;
+    left: 20rpx;
     top: 50%;
     transform: translateY(-50%);
   }
 
   &.right {
-    right: 16rpx;
+    right: 20rpx;
     top: 50%;
     transform: translateY(-50%);
   }
 }
 
 .joystick-handle {
-  width: 100rpx;
-  height: 100rpx;
+  width: 120rpx;
+  height: 120rpx;
   position: absolute;
   top: 50%;
   left: 50%;
@@ -1022,6 +1158,7 @@ onLoad(() => {
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
+  cursor: pointer;
 }
 
 .handle-icon {
@@ -1049,6 +1186,53 @@ onLoad(() => {
   &:last-child {
     margin-bottom: 0;
   }
+}
+
+// 底部菜单样式
+.bottom-menu {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(15px);
+  border-top: 2rpx solid rgba(255, 255, 255, 0.2);
+  z-index: 1000;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.menu-container {
+  display: flex;
+  height: 120rpx;
+}
+
+.menu-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.7);
+  transition: all 0.3s ease;
+  cursor: pointer;
+  padding: 16rpx 8rpx;
+
+  &:hover,
+  &.active {
+    color: #4fd1c7;
+    background: rgba(79, 209, 199, 0.1);
+  }
+}
+
+.menu-icon {
+  font-size: 40rpx;
+  margin-bottom: 8rpx;
+}
+
+.menu-label {
+  font-size: 22rpx;
+  font-weight: 500;
+  text-align: center;
 }
 
 @keyframes pulse {

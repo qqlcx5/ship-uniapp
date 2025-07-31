@@ -72,6 +72,38 @@ const efficiencyData = ref([
   { speed: 14, efficiency: 52, range: 31 },
 ])
 
+// AI分析数据
+const aiAnalysis = ref({
+  performanceScore: 88, // 性能评分
+  efficiencyTrend: 'improving', // 效率趋势：improving, stable, declining
+  recommendations: [
+    '建议在风速低于15节时提高航行速度',
+    '电池充电周期建议调整为每48小时一次',
+    '推荐在夜间进行低功耗巡航模式',
+    '根据历史数据，当前航线可优化15%的能耗',
+  ],
+  predictedMaintenance: '预计15天后需要进行常规维护',
+  weatherOptimization: '根据天气预报，建议明日14:00-18:00进行长距离航行',
+  riskAssessment: 'low', // 风险评估：low, medium, high
+  learningProgress: 76, // AI学习进度百分比
+})
+
+// 智能预测数据
+const predictions = ref({
+  nextMaintenanceDate: '2024-02-15',
+  estimatedLifespan: '预计剩余使用寿命：3.2年',
+  optimalOperatingConditions: {
+    temperature: '15-25°C',
+    windSpeed: '< 20节',
+    waveHeight: '< 2米',
+  },
+  energyOptimization: {
+    currentEfficiency: 78,
+    potentialImprovement: 12,
+    recommendedActions: ['调整螺旋桨转速', '优化航行路线', '改进电池管理'],
+  },
+})
+
 // 菜单项配置
 const menuItems = [
   { id: 'manual', icon: '🎮', label: '手动导航', page: '/pages/ship/manual' },
@@ -88,6 +120,37 @@ function getBatteryClass(status: string) {
     case 'good': return 'good'
     default: return 'good'
   }
+}
+
+// 获取性能评分样式类
+function getScoreClass(score: number) {
+  if (score >= 90)
+    return 'excellent'
+  if (score >= 80)
+    return 'good'
+  if (score >= 70)
+    return 'average'
+  return 'poor'
+}
+
+// 获取趋势文本
+function getTrendText(trend: string) {
+  const trendMap = {
+    improving: '📈 持续改善',
+    stable: '➡️ 保持稳定',
+    declining: '📉 需要关注',
+  }
+  return trendMap[trend as keyof typeof trendMap] || '未知'
+}
+
+// 获取风险文本
+function getRiskText(risk: string) {
+  const riskMap = {
+    low: '🟢 低风险',
+    medium: '🟡 中等风险',
+    high: '🔴 高风险',
+  }
+  return riskMap[risk as keyof typeof riskMap] || '未知'
 }
 
 // 电池预警检查
@@ -508,6 +571,83 @@ onLoad(() => {
             获取AI优化建议
           </text>
         </button>
+      </view>
+
+      <!-- AI智能分析 -->
+      <view class="section-title">
+        <text class="title-icon">
+          🧠
+        </text>
+        <text class="title-text">
+          AI智能分析
+        </text>
+      </view>
+
+      <view class="ai-analysis-section">
+        <view class="analysis-card">
+          <view class="card-header">
+            <text class="card-title">
+              性能评分
+            </text>
+            <text class="score-value" :class="getScoreClass(aiAnalysis.performanceScore)">
+              {{ aiAnalysis.performanceScore }}/100
+            </text>
+          </view>
+          <view class="progress-bar">
+            <view class="progress-fill" :style="{ width: `${aiAnalysis.performanceScore}%` }" />
+          </view>
+        </view>
+
+        <view class="analysis-card">
+          <view class="card-header">
+            <text class="card-title">
+              效率趋势
+            </text>
+            <text class="trend-indicator" :class="aiAnalysis.efficiencyTrend">
+              {{ getTrendText(aiAnalysis.efficiencyTrend) }}
+            </text>
+          </view>
+        </view>
+
+        <view class="analysis-card">
+          <view class="card-header">
+            <text class="card-title">
+              AI学习进度
+            </text>
+            <text class="progress-value">
+              {{ aiAnalysis.learningProgress }}%
+            </text>
+          </view>
+          <view class="progress-bar">
+            <view class="progress-fill learning" :style="{ width: `${aiAnalysis.learningProgress}%` }" />
+          </view>
+        </view>
+      </view>
+
+      <!-- AI建议列表 -->
+      <view class="recommendations-section">
+        <view class="section-title">
+          <text class="title-icon">
+            💡
+          </text>
+          <text class="title-text">
+            智能建议
+          </text>
+        </view>
+        <view class="recommendations-list">
+          <view
+            v-for="(recommendation, index) in aiAnalysis.recommendations"
+            :key="index"
+            class="recommendation-item"
+          >
+            <text class="recommendation-icon">
+              {{ index + 1 }}
+            </text>
+            <text class="recommendation-text">
+              {{ recommendation }}
+            </text>
+          </view>
+        </view>
       </view>
     </scroll-view>
 
