@@ -76,6 +76,54 @@
       "style": {
         "navigationBarTitleText": "Vue Query 请求演示"
       }
+    },
+    {
+      "path": "pages/ship/ai",
+      "type": "page",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "AI管理"
+      }
+    },
+    {
+      "path": "pages/ship/cruise",
+      "type": "page",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "自动巡航"
+      }
+    },
+    {
+      "path": "pages/ship/dashboard",
+      "type": "page",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "主控台"
+      }
+    },
+    {
+      "path": "pages/ship/login",
+      "type": "page",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "船舶智能管理系统"
+      }
+    },
+    {
+      "path": "pages/ship/management",
+      "type": "page",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "综合管理"
+      }
+    },
+    {
+      "path": "pages/ship/manual",
+      "type": "page",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "手动导航"
+      }
     }
   ],
   "subPackages": [
