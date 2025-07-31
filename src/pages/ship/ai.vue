@@ -33,35 +33,52 @@ systemInfo = uni.getSystemInfoSync()
 safeAreaInsets = systemInfo.safeAreaInsets
 // #endif
 
+// 当前活跃的菜单项
+const activeMenu = ref('ai')
+
+// 累计航行数据
+const cumulativeData = ref({
+  totalDistance: 1847.6, // 累计航行里程
+  totalEnergyConsumption: 356.8, // 总消耗电量
+  singleTripDistance: 45.2, // 单次里程
+  singleTripEnergy: 12.3, // 单次消耗电量
+  optimizedSpeed: 8.5, // 优化航速
+  optimizedRange: 52.8, // 优化航程
+})
+
 // 电池状态数据
 const batteryData = ref({
   main: { level: 18, voltage: 12.1, status: 'critical' },
   backup: { level: 76, voltage: 12.8, status: 'good' },
-  solar: { power: 45, status: 'charging' }
+  isLowBattery: true, // 低于20%预警
+  estimatedTime: '2.5小时', // 预计续航时间
 })
 
-// 能耗统计数据
-const energyConsumption = ref([
-  { name: '推进系统', percentage: 64, color: '#EF4444' },
-  { name: '导航设备', percentage: 18, color: '#3B82F6' },
-  { name: '通讯系统', percentage: 12, color: '#10B981' },
-  { name: '其他设备', percentage: 6, color: '#8B5CF6' }
+// 历史轨迹数据
+const historyTracks = ref([
+  { id: 1, date: '2024-01-15', distance: 23.5, duration: '3小时15分', energy: 8.2 },
+  { id: 2, date: '2024-01-14', distance: 18.7, duration: '2小时30分', energy: 6.1 },
+  { id: 3, date: '2024-01-13', distance: 31.2, duration: '4小时05分', energy: 11.8 },
+  { id: 4, date: '2024-01-12', distance: 15.3, duration: '2小时10分', energy: 4.9 },
+  { id: 5, date: '2024-01-11', distance: 27.8, duration: '3小时45分', energy: 9.7 },
 ])
 
-// 运行数据
-const operationData = ref({
-  totalDistance: 1847.6,
-  totalFuelConsumption: 356.8,
-  operationTime: '1,247小时',
-  maintenanceReminder: '距离下次保养还有15天'
-})
+// 能效分析数据
+const efficiencyData = ref([
+  { speed: 6, efficiency: 95, range: 58 },
+  { speed: 8, efficiency: 88, range: 52 },
+  { speed: 10, efficiency: 78, range: 45 },
+  { speed: 12, efficiency: 65, range: 38 },
+  { speed: 14, efficiency: 52, range: 31 },
+])
 
-// AI分析结果
-const aiAnalysis = ref({
-  batteryPrediction: '预计续航2.5小时',
-  recommendation: '建议启用节能模式',
-  alertLevel: 'warning'
-})
+// 菜单项配置
+const menuItems = [
+  { id: 'manual', icon: '🎮', label: '手动导航', page: '/pages/ship/manual' },
+  { id: 'cruise', icon: '🗺️', label: '自动巡航', page: '/pages/ship/cruise' },
+  { id: 'ai', icon: '🧠', label: 'AI管理', page: '/pages/ship/ai' },
+  { id: 'management', icon: '⚙️', label: '综合管理', page: '/pages/ship/management' },
+]
 
 // 获取电池状态样式类
 function getBatteryClass(status: string) {
@@ -73,9 +90,54 @@ function getBatteryClass(status: string) {
   }
 }
 
-// 返回主控台
-function goBack() {
-  uni.navigateBack()
+// 菜单点击处理
+function handleMenuClick(item: any) {
+  if (item.id === activeMenu.value)
+    return
+
+  activeMenu.value = item.id
+  uni.navigateTo({
+    url: item.page,
+  })
+}
+
+// 查看历史轨迹详情
+function viewTrackDetail(track: any) {
+  uni.showModal({
+    title: `${track.date} 航行记录`,
+    content: `航行距离: ${track.distance}km\n航行时长: ${track.duration}\n能耗: ${track.energy}kWh\n平均速度: ${(track.distance / Number.parseFloat(track.duration)).toFixed(1)}节`,
+    showCancel: false,
+  })
+}
+
+// 优化建议
+function getOptimizationSuggestion() {
+  const bestEfficiency = efficiencyData.value.reduce((prev, current) =>
+    prev.efficiency > current.efficiency ? prev : current,
+  )
+
+  uni.showModal({
+    title: 'AI优化建议',
+    content: `建议航速: ${bestEfficiency.speed}节\n能效: ${bestEfficiency.efficiency}%\n预计航程: ${bestEfficiency.range}km\n\n当前电池状态较低，建议启用节能模式并降低航速。`,
+    showCancel: false,
+  })
+}
+
+// 电池预警处理
+function handleBatteryWarning() {
+  if (batteryData.value.isLowBattery) {
+    uni.showModal({
+      title: '电池预警',
+      content: `主电池电量已低于20%！\n当前电量: ${batteryData.value.main.level}%\n预计续航: ${batteryData.value.estimatedTime}\n\n建议立即返航或寻找充电点。`,
+      confirmText: '返航',
+      cancelText: '继续',
+      success: (res) => {
+        if (res.confirm) {
+          uni.showToast({ title: '启动自动返航', icon: 'success' })
+        }
+      },
+    })
+  }
 }
 
 onLoad(() => {
@@ -85,174 +147,287 @@ onLoad(() => {
 
 <template>
   <view class="ai-container" :style="{ paddingTop: `${safeAreaInsets?.top || 0}px` }">
-    <!-- 顶部状态栏 -->
-    <view class="status-bar">
-      <view class="status-left">
-        <button class="back-button" @click="goBack">
-          <text class="back-icon">←</text>
-        </button>
-        <view class="title-section">
-          <text class="ai-icon">🧠</text>
-          <text class="title">AI智能电量管理</text>
-        </view>
-        <view class="ai-status">
-          <view class="status-dot active"></view>
-          <text class="status-text">AI监控活跃</text>
-        </view>
-      </view>
-      
-      <view class="battery-summary">
-        <text class="summary-text">电池状态: </text>
-        <text class="summary-value warning">{{ batteryData.main.level }}%警告</text>
-        <text class="summary-text"> | 预计续航: </text>
-        <text class="summary-value">{{ aiAnalysis.batteryPrediction }}</text>
-      </view>
+    <!-- 电池预警横幅 -->
+    <view v-if="batteryData.isLowBattery" class="battery-warning" @click="handleBatteryWarning">
+      <text class="warning-icon">
+        ⚠️
+      </text>
+      <text class="warning-text">
+        电池电量低于20%！点击查看详情
+      </text>
+      <text class="warning-level">
+        {{ batteryData.main.level }}%
+      </text>
     </view>
-    
+
     <!-- 主要内容区域 -->
     <scroll-view class="content-area" scroll-y>
-      <!-- 电池状态监控 -->
+      <!-- 累计航行数据 -->
       <view class="section-title">
-        <text class="title-icon">🔋</text>
-        <text class="title-text">电池状态监控</text>
+        <text class="title-icon">
+          📊
+        </text>
+        <text class="title-text">
+          累计航行数据
+        </text>
       </view>
-      
-      <view class="battery-grid">
-        <!-- 主电池 -->
-        <view class="battery-card">
-          <view class="battery-indicator">
-            <view 
-              class="battery-level"
-              :class="getBatteryClass(batteryData.main.status)"
-              :style="{ width: `${batteryData.main.level}%` }"
-            ></view>
-          </view>
-          <text class="battery-label">主电池</text>
-          <text class="battery-percentage" :class="getBatteryClass(batteryData.main.status)">
-            {{ batteryData.main.level }}%
+
+      <view class="cumulative-grid">
+        <view class="data-card">
+          <text class="data-label">
+            累计航行里程
           </text>
-          <view class="battery-status">
-            <view class="status-indicator" :class="getBatteryClass(batteryData.main.status)"></view>
-            <text class="status-label" :class="getBatteryClass(batteryData.main.status)">
-              {{ batteryData.main.status === 'critical' ? '低电量警告' : '正常' }}
-            </text>
-          </view>
-          <text class="battery-voltage">{{ batteryData.main.voltage }}V</text>
-        </view>
-        
-        <!-- 备用电池 -->
-        <view class="battery-card">
-          <view class="battery-indicator">
-            <view 
-              class="battery-level"
-              :class="getBatteryClass(batteryData.backup.status)"
-              :style="{ width: `${batteryData.backup.level}%` }"
-            ></view>
-          </view>
-          <text class="battery-label">备用电池</text>
-          <text class="battery-percentage" :class="getBatteryClass(batteryData.backup.status)">
-            {{ batteryData.backup.level }}%
+          <text class="data-value">
+            {{ cumulativeData.totalDistance }}
           </text>
-          <view class="battery-status">
-            <view class="status-indicator" :class="getBatteryClass(batteryData.backup.status)"></view>
-            <text class="status-label" :class="getBatteryClass(batteryData.backup.status)">正常</text>
-          </view>
-          <text class="battery-voltage">{{ batteryData.backup.voltage }}V</text>
+          <text class="data-unit">
+            海里
+          </text>
         </view>
-        
-        <!-- 太阳能充电 -->
-        <view class="solar-card">
-          <view class="solar-icon">
-            <text class="icon">☀️</text>
-          </view>
-          <text class="solar-label">太阳能</text>
-          <text class="solar-power">{{ batteryData.solar.power }}W</text>
-          <view class="solar-status">
-            <view class="status-indicator good"></view>
-            <text class="status-label good">充电中</text>
-          </view>
+        <view class="data-card">
+          <text class="data-label">
+            总消耗电量
+          </text>
+          <text class="data-value">
+            {{ cumulativeData.totalEnergyConsumption }}
+          </text>
+          <text class="data-unit">
+            kWh
+          </text>
+        </view>
+        <view class="data-card">
+          <text class="data-label">
+            单次里程
+          </text>
+          <text class="data-value">
+            {{ cumulativeData.singleTripDistance }}
+          </text>
+          <text class="data-unit">
+            海里
+          </text>
+        </view>
+        <view class="data-card">
+          <text class="data-label">
+            单次消耗电量
+          </text>
+          <text class="data-value">
+            {{ cumulativeData.singleTripEnergy }}
+          </text>
+          <text class="data-unit">
+            kWh
+          </text>
+        </view>
+        <view class="data-card">
+          <text class="data-label">
+            优化航速
+          </text>
+          <text class="data-value">
+            {{ cumulativeData.optimizedSpeed }}
+          </text>
+          <text class="data-unit">
+            节
+          </text>
+        </view>
+        <view class="data-card">
+          <text class="data-label">
+            优化航程
+          </text>
+          <text class="data-value">
+            {{ cumulativeData.optimizedRange }}
+          </text>
+          <text class="data-unit">
+            海里
+          </text>
         </view>
       </view>
-      
-      <!-- 能耗统计分析 -->
+
+      <!-- 历史轨迹查询 -->
       <view class="section-title">
-        <text class="title-icon">📊</text>
-        <text class="title-text">能耗统计分析</text>
+        <text class="title-icon">
+          🗺️
+        </text>
+        <text class="title-text">
+          历史轨迹查询
+        </text>
       </view>
-      
-      <view class="energy-analysis">
-        <view class="energy-chart">
-          <view 
-            v-for="item in energyConsumption" 
-            :key="item.name"
-            class="energy-item"
-          >
-            <text class="energy-name">{{ item.name }}</text>
-            <view class="energy-bar">
-              <view 
-                class="energy-fill"
-                :style="{ 
-                  width: `${item.percentage}%`, 
-                  backgroundColor: item.color 
-                }"
-              ></view>
+
+      <view class="history-tracks">
+        <view
+          v-for="track in historyTracks"
+          :key="track.id"
+          class="track-item"
+          @click="viewTrackDetail(track)"
+        >
+          <view class="track-date">
+            {{ track.date }}
+          </view>
+          <view class="track-details">
+            <view class="track-info">
+              <text class="info-label">
+                距离:
+              </text>
+              <text class="info-value">
+                {{ track.distance }}km
+              </text>
             </view>
-            <text class="energy-percentage" :style="{ color: item.color }">
-              {{ item.percentage }}%
+            <view class="track-info">
+              <text class="info-label">
+                时长:
+              </text>
+              <text class="info-value">
+                {{ track.duration }}
+              </text>
+            </view>
+            <view class="track-info">
+              <text class="info-label">
+                能耗:
+              </text>
+              <text class="info-value">
+                {{ track.energy }}kWh
+              </text>
+            </view>
+          </view>
+          <text class="track-arrow">
+            >
+          </text>
+        </view>
+      </view>
+
+      <!-- 电池预警功能 -->
+      <view class="section-title">
+        <text class="title-icon">
+          🔋
+        </text>
+        <text class="title-text">
+          电池预警功能
+        </text>
+      </view>
+
+      <view class="battery-warning-section">
+        <view class="battery-status-card">
+          <view class="battery-visual">
+            <view class="battery-shell">
+              <view
+                class="battery-fill"
+                :class="getBatteryClass(batteryData.main.status)"
+                :style="{ width: `${batteryData.main.level}%` }"
+              />
+            </view>
+            <text class="battery-percentage" :class="getBatteryClass(batteryData.main.status)">
+              {{ batteryData.main.level }}%
             </text>
           </view>
-        </view>
-      </view>
-      
-      <!-- 累计运行数据 -->
-      <view class="section-title">
-        <text class="title-icon">📈</text>
-        <text class="title-text">累计运行数据</text>
-      </view>
-      
-      <view class="operation-stats">
-        <view class="stat-item">
-          <text class="stat-label">总航程</text>
-          <text class="stat-value">{{ operationData.totalDistance }} 海里</text>
-        </view>
-        <view class="stat-item">
-          <text class="stat-label">总油耗</text>
-          <text class="stat-value">{{ operationData.totalFuelConsumption }} 升</text>
-        </view>
-        <view class="stat-item">
-          <text class="stat-label">运行时间</text>
-          <text class="stat-value">{{ operationData.operationTime }}</text>
-        </view>
-        <view class="stat-item">
-          <text class="stat-label">保养提醒</text>
-          <text class="stat-value warning">{{ operationData.maintenanceReminder }}</text>
-        </view>
-      </view>
-      
-      <!-- AI智能建议 -->
-      <view class="section-title">
-        <text class="title-icon">🤖</text>
-        <text class="title-text">AI智能建议</text>
-      </view>
-      
-      <view class="ai-suggestions">
-        <view class="suggestion-card">
-          <view class="suggestion-header">
-            <text class="suggestion-icon">⚡</text>
-            <text class="suggestion-title">电量优化建议</text>
+
+          <view class="battery-info">
+            <view class="info-row">
+              <text class="info-label">
+                主电池电压:
+              </text>
+              <text class="info-value">
+                {{ batteryData.main.voltage }}V
+              </text>
+            </view>
+            <view class="info-row">
+              <text class="info-label">
+                备用电池:
+              </text>
+              <text class="info-value">
+                {{ batteryData.backup.level }}%
+              </text>
+            </view>
+            <view class="info-row">
+              <text class="info-label">
+                预计续航:
+              </text>
+              <text class="info-value">
+                {{ batteryData.estimatedTime }}
+              </text>
+            </view>
           </view>
-          <text class="suggestion-content">{{ aiAnalysis.recommendation }}</text>
         </view>
-        
-        <view class="suggestion-card">
-          <view class="suggestion-header">
-            <text class="suggestion-icon">🔧</text>
-            <text class="suggestion-title">维护建议</text>
+
+        <view v-if="batteryData.isLowBattery" class="warning-actions">
+          <button class="action-btn emergency" @click="handleBatteryWarning">
+            <text class="btn-icon">
+              🚨
+            </text>
+            <text class="btn-text">
+              紧急返航
+            </text>
+          </button>
+          <button class="action-btn optimize" @click="getOptimizationSuggestion">
+            <text class="btn-icon">
+              ⚡
+            </text>
+            <text class="btn-text">
+              节能模式
+            </text>
+          </button>
+        </view>
+      </view>
+
+      <!-- AI优化建议 -->
+      <view class="section-title">
+        <text class="title-icon">
+          🤖
+        </text>
+        <text class="title-text">
+          AI优化建议
+        </text>
+      </view>
+
+      <view class="optimization-section">
+        <view class="efficiency-chart">
+          <view class="chart-title">
+            速度-能效关系图
           </view>
-          <text class="suggestion-content">建议检查推进系统，能耗偏高</text>
+          <view class="chart-container">
+            <view
+              v-for="data in efficiencyData"
+              :key="data.speed"
+              class="chart-bar"
+              :style="{ height: `${data.efficiency}%` }"
+            >
+              <text class="bar-label">
+                {{ data.speed }}节
+              </text>
+              <text class="bar-value">
+                {{ data.efficiency }}%
+              </text>
+            </view>
+          </view>
         </view>
+
+        <button class="optimization-btn" @click="getOptimizationSuggestion">
+          <text class="btn-icon">
+            🎯
+          </text>
+          <text class="btn-text">
+            获取AI优化建议
+          </text>
+        </button>
       </view>
     </scroll-view>
+
+    <!-- 底部菜单栏 -->
+    <view class="bottom-menu">
+      <view class="menu-container">
+        <view
+          v-for="item in menuItems"
+          :key="item.id"
+          class="menu-item"
+          :class="{ active: activeMenu === item.id }"
+          @click="handleMenuClick(item)"
+        >
+          <text class="menu-icon">
+            {{ item.icon }}
+          </text>
+          <text class="menu-label">
+            {{ item.label }}
+          </text>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -260,7 +435,7 @@ onLoad(() => {
 .ai-container {
   width: 100vw;
   height: 100vh;
-  background: linear-gradient(135deg, #0B1426 0%, #1A365D 50%, #2563EB 100%);
+  background: linear-gradient(135deg, #0b1426 0%, #1a365d 50%, #2563eb 100%);
   display: flex;
   flex-direction: column;
 }
@@ -302,7 +477,7 @@ onLoad(() => {
 }
 
 .ai-icon {
-  color: #4FD1C7;
+  color: #4fd1c7;
   font-size: 28rpx;
 }
 
@@ -321,13 +496,13 @@ onLoad(() => {
 .status-dot {
   width: 12rpx;
   height: 12rpx;
-  background: #10B981;
+  background: #10b981;
   border-radius: 50%;
   animation: pulse 2s infinite;
 }
 
 .status-text {
-  color: #10B981;
+  color: #10b981;
   font-size: 20rpx;
 }
 
@@ -343,17 +518,17 @@ onLoad(() => {
 }
 
 .summary-value {
-  color: #4FD1C7;
+  color: #4fd1c7;
   font-size: 20rpx;
-  
+
   &.warning {
-    color: #F59E0B;
+    color: #f59e0b;
   }
 }
 
 .content-area {
   flex: 1;
-  padding: 32rpx;
+  // padding: 32rpx;
 }
 
 .section-title {
@@ -362,7 +537,7 @@ onLoad(() => {
   gap: 16rpx;
   margin-bottom: 32rpx;
   margin-top: 32rpx;
-  
+
   &:first-child {
     margin-top: 0;
   }
@@ -385,7 +560,8 @@ onLoad(() => {
   margin-bottom: 48rpx;
 }
 
-.battery-card, .solar-card {
+.battery-card,
+.solar-card {
   background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(15px);
   border: 2rpx solid rgba(255, 255, 255, 0.2);
@@ -393,7 +569,7 @@ onLoad(() => {
   padding: 32rpx;
   text-align: center;
   transition: all 0.3s ease;
-  
+
   &:hover {
     background: rgba(0, 0, 0, 0.7);
     border-color: rgba(79, 209, 199, 0.5);
@@ -416,52 +592,55 @@ onLoad(() => {
   height: 100%;
   border-radius: 4rpx;
   transition: all 0.3s ease;
-  
+
   &.critical {
-    background: linear-gradient(90deg, #EF4444, #DC2626);
+    background: linear-gradient(90deg, #ef4444, #dc2626);
     animation: batteryPulse 1.5s infinite;
   }
-  
+
   &.warning {
-    background: linear-gradient(90deg, #F59E0B, #D97706);
+    background: linear-gradient(90deg, #f59e0b, #d97706);
   }
-  
+
   &.good {
-    background: linear-gradient(90deg, #10B981, #059669);
+    background: linear-gradient(90deg, #10b981, #059669);
   }
 }
 
-.battery-label, .solar-label {
+.battery-label,
+.solar-label {
   display: block;
   color: white;
   font-size: 24rpx;
   margin-bottom: 16rpx;
 }
 
-.battery-percentage, .solar-power {
+.battery-percentage,
+.solar-power {
   display: block;
   font-size: 36rpx;
   font-weight: bold;
   margin-bottom: 16rpx;
-  
+
   &.critical {
-    color: #EF4444;
+    color: #ef4444;
   }
-  
+
   &.warning {
-    color: #F59E0B;
+    color: #f59e0b;
   }
-  
+
   &.good {
-    color: #10B981;
+    color: #10b981;
   }
 }
 
 .solar-power {
-  color: #F59E0B;
+  color: #f59e0b;
 }
 
-.battery-status, .solar-status {
+.battery-status,
+.solar-status {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -473,34 +652,34 @@ onLoad(() => {
   width: 16rpx;
   height: 16rpx;
   border-radius: 50%;
-  
+
   &.critical {
-    background: #EF4444;
+    background: #ef4444;
     animation: pulse 2s infinite;
   }
-  
+
   &.warning {
-    background: #F59E0B;
+    background: #f59e0b;
   }
-  
+
   &.good {
-    background: #10B981;
+    background: #10b981;
   }
 }
 
 .status-label {
   font-size: 20rpx;
-  
+
   &.critical {
-    color: #EF4444;
+    color: #ef4444;
   }
-  
+
   &.warning {
-    color: #F59E0B;
+    color: #f59e0b;
   }
-  
+
   &.good {
-    color: #10B981;
+    color: #10b981;
   }
 }
 
@@ -512,7 +691,7 @@ onLoad(() => {
 .solar-icon {
   width: 96rpx;
   height: 96rpx;
-  background: linear-gradient(135deg, #F59E0B, #D97706);
+  background: linear-gradient(135deg, #f59e0b, #d97706);
   border-radius: 50%;
   margin: 0 auto 24rpx;
   display: flex;
@@ -599,13 +778,13 @@ onLoad(() => {
 
 .stat-value {
   display: block;
-  color: #4FD1C7;
+  color: #4fd1c7;
   font-size: 28rpx;
   font-weight: bold;
   font-family: monospace;
-  
+
   &.warning {
-    color: #F59E0B;
+    color: #f59e0b;
   }
 }
 
@@ -647,12 +826,22 @@ onLoad(() => {
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 
 @keyframes batteryPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 </style>

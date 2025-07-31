@@ -36,8 +36,8 @@
       {
         "iconPath": "static/tabbar/example.png",
         "selectedIconPath": "static/tabbar/exampleHL.png",
-        "pagePath": "pages/about/about",
-        "text": "关于",
+        "pagePath": "pages/ship/dashboard",
+        "text": "主控台",
         "icon": "i-carbon-code",
         "iconType": "unocss"
       }

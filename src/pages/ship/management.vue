@@ -38,7 +38,7 @@ const shipList = ref([
   { id: 1, name: '海巡001', status: 'online', battery: 85, location: '福建海域A区' },
   { id: 2, name: '海巡002', status: 'online', battery: 72, location: '福建海域B区' },
   { id: 3, name: '海巡003', status: 'warning', battery: 23, location: '福建海域C区' },
-  { id: 4, name: '海巡004', status: 'offline', battery: 0, location: '维护中' }
+  { id: 4, name: '海巡004', status: 'offline', battery: 0, location: '维护中' },
 ])
 
 // 人员管理数据
@@ -46,7 +46,7 @@ const crewList = ref([
   { id: 1, name: '张船长', role: '船长', status: 'online', avatar: 'Z' },
   { id: 2, name: '李工程师', role: '工程师', status: 'online', avatar: 'L' },
   { id: 3, name: '王技师', role: '技师', status: 'offline', avatar: 'W' },
-  { id: 4, name: '陈操作员', role: '操作员', status: 'online', avatar: 'C' }
+  { id: 4, name: '陈操作员', role: '操作员', status: 'online', avatar: 'C' },
 ])
 
 // 系统设置数据
@@ -54,7 +54,7 @@ const systemSettings = ref({
   autoMode: true,
   nightMode: false,
   alertSound: true,
-  dataSync: true
+  dataSync: true,
 })
 
 // 获取状态样式类
@@ -69,8 +69,10 @@ function getStatusClass(status: string) {
 
 // 获取电池状态样式
 function getBatteryClass(battery: number) {
-  if (battery > 50) return 'good'
-  if (battery > 20) return 'warning'
+  if (battery > 50)
+    return 'good'
+  if (battery > 20)
+    return 'warning'
   return 'critical'
 }
 
@@ -79,7 +81,7 @@ function handleShipAction(ship: any, action: string) {
   switch (action) {
     case 'control':
       uni.navigateTo({
-        url: `/pages/ship/manual?shipId=${ship.id}`
+        url: `/pages/ship/manual?shipId=${ship.id}`,
       })
       break
     case 'track':
@@ -93,7 +95,7 @@ function handleShipAction(ship: any, action: string) {
           if (res.confirm) {
             uni.showToast({ title: '维护模式已启动', icon: 'success' })
           }
-        }
+        },
       })
       break
   }
@@ -114,9 +116,9 @@ function handleCrewAction(crew: any, action: string) {
 // 系统设置切换
 function toggleSetting(key: string) {
   systemSettings.value[key] = !systemSettings.value[key]
-  uni.showToast({ 
-    title: `${key}已${systemSettings.value[key] ? '开启' : '关闭'}`, 
-    icon: 'success' 
+  uni.showToast({
+    title: `${key}已${systemSettings.value[key] ? '开启' : '关闭'}`,
+    icon: 'success',
   })
 }
 
@@ -136,183 +138,247 @@ onLoad(() => {
     <view class="status-bar">
       <view class="status-left">
         <button class="back-button" @click="goBack">
-          <text class="back-icon">←</text>
+          <text class="back-icon">
+            ←
+          </text>
         </button>
         <view class="title-section">
-          <text class="management-icon">⚙️</text>
-          <text class="title">综合管理中心</text>
+          <text class="management-icon">
+            ⚙️
+          </text>
+          <text class="title">
+            综合管理中心
+          </text>
         </view>
       </view>
-      
+
       <view class="system-status">
-        <text class="status-text">系统运行正常</text>
-        <view class="status-dot online"></view>
+        <text class="status-text">
+          系统运行正常
+        </text>
+        <view class="status-dot online" />
       </view>
     </view>
-    
+
     <!-- 主要内容区域 -->
     <scroll-view class="content-area" scroll-y>
       <!-- 船只管理 -->
       <view class="section">
         <view class="section-header">
-          <text class="section-icon">🚢</text>
-          <text class="section-title">船只管理</text>
+          <text class="section-icon">
+            🚢
+          </text>
+          <text class="section-title">
+            船只管理
+          </text>
         </view>
-        
+
         <view class="ship-grid">
-          <view 
-            v-for="ship in shipList" 
+          <view
+            v-for="ship in shipList"
             :key="ship.id"
             class="ship-card"
           >
             <view class="ship-header">
               <view class="ship-thumbnail">
-                <text class="ship-icon">🚢</text>
+                <text class="ship-icon">
+                  🚢
+                </text>
               </view>
               <view class="ship-info">
-                <text class="ship-name">{{ ship.name }}</text>
-                <text class="ship-location">{{ ship.location }}</text>
+                <text class="ship-name">
+                  {{ ship.name }}
+                </text>
+                <text class="ship-location">
+                  {{ ship.location }}
+                </text>
               </view>
               <view class="ship-status">
-                <view class="status-indicator" :class="getStatusClass(ship.status)"></view>
+                <view class="status-indicator" :class="getStatusClass(ship.status)" />
               </view>
             </view>
-            
+
             <view class="ship-details">
               <view class="detail-item">
-                <text class="detail-label">电量:</text>
+                <text class="detail-label">
+                  电量:
+                </text>
                 <text class="detail-value" :class="getBatteryClass(ship.battery)">
                   {{ ship.battery }}%
                 </text>
               </view>
               <view class="detail-item">
-                <text class="detail-label">状态:</text>
+                <text class="detail-label">
+                  状态:
+                </text>
                 <text class="detail-value">
                   {{ ship.status === 'online' ? '在线' : ship.status === 'warning' ? '警告' : '离线' }}
                 </text>
               </view>
             </view>
-            
+
             <view class="ship-actions">
-              <button 
+              <button
                 class="action-btn control"
-                @click="handleShipAction(ship, 'control')"
                 :disabled="ship.status === 'offline'"
+                @click="handleShipAction(ship, 'control')"
               >
-                <text class="btn-icon">🎮</text>
+                <text class="btn-icon">
+                  🎮
+                </text>
               </button>
-              <button 
+              <button
                 class="action-btn track"
                 @click="handleShipAction(ship, 'track')"
               >
-                <text class="btn-icon">📍</text>
+                <text class="btn-icon">
+                  📍
+                </text>
               </button>
-              <button 
+              <button
                 class="action-btn maintenance"
                 @click="handleShipAction(ship, 'maintenance')"
               >
-                <text class="btn-icon">🔧</text>
+                <text class="btn-icon">
+                  🔧
+                </text>
               </button>
             </view>
           </view>
         </view>
       </view>
-      
+
       <!-- 人员管理 -->
       <view class="section">
         <view class="section-header">
-          <text class="section-icon">👥</text>
-          <text class="section-title">人员管理</text>
+          <text class="section-icon">
+            👥
+          </text>
+          <text class="section-title">
+            人员管理
+          </text>
         </view>
-        
+
         <view class="crew-list">
-          <view 
-            v-for="crew in crewList" 
+          <view
+            v-for="crew in crewList"
             :key="crew.id"
             class="crew-item"
           >
             <view class="crew-avatar">
-              <text class="avatar-text">{{ crew.avatar }}</text>
+              <text class="avatar-text">
+                {{ crew.avatar }}
+              </text>
             </view>
             <view class="crew-info">
-              <text class="crew-name">{{ crew.name }}</text>
-              <text class="crew-role">{{ crew.role }}</text>
+              <text class="crew-name">
+                {{ crew.name }}
+              </text>
+              <text class="crew-role">
+                {{ crew.role }}
+              </text>
             </view>
             <view class="crew-status">
-              <view class="status-indicator" :class="getStatusClass(crew.status)"></view>
-              <text class="status-text">{{ crew.status === 'online' ? '在线' : '离线' }}</text>
+              <view class="status-indicator" :class="getStatusClass(crew.status)" />
+              <text class="status-text">
+                {{ crew.status === 'online' ? '在线' : '离线' }}
+              </text>
             </view>
             <view class="crew-actions">
-              <button 
+              <button
                 class="action-btn-small contact"
                 @click="handleCrewAction(crew, 'contact')"
               >
-                <text class="btn-icon">📞</text>
+                <text class="btn-icon">
+                  📞
+                </text>
               </button>
-              <button 
+              <button
                 class="action-btn-small assign"
                 @click="handleCrewAction(crew, 'assign')"
               >
-                <text class="btn-icon">📋</text>
+                <text class="btn-icon">
+                  📋
+                </text>
               </button>
             </view>
           </view>
         </view>
       </view>
-      
+
       <!-- 系统设置 -->
       <view class="section">
         <view class="section-header">
-          <text class="section-icon">⚙️</text>
-          <text class="section-title">系统设置</text>
+          <text class="section-icon">
+            ⚙️
+          </text>
+          <text class="section-title">
+            系统设置
+          </text>
         </view>
-        
+
         <view class="settings-list">
           <view class="setting-item">
             <view class="setting-info">
-              <text class="setting-name">自动模式</text>
-              <text class="setting-desc">启用智能自动控制</text>
+              <text class="setting-name">
+                自动模式
+              </text>
+              <text class="setting-desc">
+                启用智能自动控制
+              </text>
             </view>
-            <switch 
+            <switch
               :checked="systemSettings.autoMode"
+              color="#4FD1C7"
               @change="toggleSetting('autoMode')"
-              color="#4FD1C7"
             />
           </view>
-          
+
           <view class="setting-item">
             <view class="setting-info">
-              <text class="setting-name">夜间模式</text>
-              <text class="setting-desc">降低屏幕亮度保护视力</text>
+              <text class="setting-name">
+                夜间模式
+              </text>
+              <text class="setting-desc">
+                降低屏幕亮度保护视力
+              </text>
             </view>
-            <switch 
+            <switch
               :checked="systemSettings.nightMode"
+              color="#4FD1C7"
               @change="toggleSetting('nightMode')"
-              color="#4FD1C7"
             />
           </view>
-          
+
           <view class="setting-item">
             <view class="setting-info">
-              <text class="setting-name">警报声音</text>
-              <text class="setting-desc">启用声音警报提醒</text>
+              <text class="setting-name">
+                警报声音
+              </text>
+              <text class="setting-desc">
+                启用声音警报提醒
+              </text>
             </view>
-            <switch 
+            <switch
               :checked="systemSettings.alertSound"
-              @change="toggleSetting('alertSound')"
               color="#4FD1C7"
+              @change="toggleSetting('alertSound')"
             />
           </view>
-          
+
           <view class="setting-item">
             <view class="setting-info">
-              <text class="setting-name">数据同步</text>
-              <text class="setting-desc">自动同步到云端服务器</text>
+              <text class="setting-name">
+                数据同步
+              </text>
+              <text class="setting-desc">
+                自动同步到云端服务器
+              </text>
             </view>
-            <switch 
+            <switch
               :checked="systemSettings.dataSync"
-              @change="toggleSetting('dataSync')"
               color="#4FD1C7"
+              @change="toggleSetting('dataSync')"
             />
           </view>
         </view>
@@ -325,7 +391,7 @@ onLoad(() => {
 .management-container {
   width: 100vw;
   height: 100vh;
-  background: linear-gradient(135deg, #0B1426 0%, #1A365D 50%, #2563EB 100%);
+  background: linear-gradient(135deg, #0b1426 0%, #1a365d 50%, #2563eb 100%);
   display: flex;
   flex-direction: column;
 }
@@ -367,7 +433,7 @@ onLoad(() => {
 }
 
 .management-icon {
-  color: #4FD1C7;
+  color: #4fd1c7;
   font-size: 28rpx;
 }
 
@@ -392,16 +458,16 @@ onLoad(() => {
   width: 16rpx;
   height: 16rpx;
   border-radius: 50%;
-  
+
   &.online {
-    background: #10B981;
+    background: #10b981;
     animation: pulse 2s infinite;
   }
 }
 
 .content-area {
   flex: 1;
-  padding: 32rpx;
+  // padding: 32rpx;
 }
 
 .section {
@@ -438,7 +504,7 @@ onLoad(() => {
   border-radius: 16rpx;
   padding: 24rpx;
   transition: all 0.3s ease;
-  
+
   &:hover {
     background: rgba(0, 0, 0, 0.7);
     border-color: rgba(79, 209, 199, 0.5);
@@ -496,19 +562,19 @@ onLoad(() => {
   width: 16rpx;
   height: 16rpx;
   border-radius: 50%;
-  
+
   &.status-online {
-    background: #10B981;
+    background: #10b981;
     animation: pulse 2s infinite;
   }
-  
+
   &.status-warning {
-    background: #F59E0B;
+    background: #f59e0b;
     animation: pulse 2s infinite;
   }
-  
+
   &.status-offline {
-    background: #6B7280;
+    background: #6b7280;
   }
 }
 
@@ -533,17 +599,17 @@ onLoad(() => {
   color: white;
   font-size: 24rpx;
   font-weight: 600;
-  
+
   &.critical {
-    color: #EF4444;
+    color: #ef4444;
   }
-  
+
   &.warning {
-    color: #F59E0B;
+    color: #f59e0b;
   }
-  
+
   &.good {
-    color: #10B981;
+    color: #10b981;
   }
 }
 
@@ -563,24 +629,24 @@ onLoad(() => {
   backdrop-filter: blur(15px);
   border: 2rpx solid rgba(255, 255, 255, 0.2);
   transition: all 0.3s ease;
-  
+
   &.control {
-    background: linear-gradient(135deg, #3B82F6, #2563EB);
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
   }
-  
+
   &.track {
-    background: linear-gradient(135deg, #10B981, #059669);
+    background: linear-gradient(135deg, #10b981, #059669);
   }
-  
+
   &.maintenance {
-    background: linear-gradient(135deg, #F59E0B, #D97706);
+    background: linear-gradient(135deg, #f59e0b, #d97706);
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
-  
+
   &:active {
     transform: scale(0.95);
   }
@@ -612,7 +678,7 @@ onLoad(() => {
   width: 80rpx;
   height: 80rpx;
   border-radius: 50%;
-  background: linear-gradient(135deg, #4FD1C7, #10B981);
+  background: linear-gradient(135deg, #4fd1c7, #10b981);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -665,15 +731,15 @@ onLoad(() => {
   backdrop-filter: blur(15px);
   border: 2rpx solid rgba(255, 255, 255, 0.2);
   transition: all 0.3s ease;
-  
+
   &.contact {
-    background: linear-gradient(135deg, #10B981, #059669);
+    background: linear-gradient(135deg, #10b981, #059669);
   }
-  
+
   &.assign {
-    background: linear-gradient(135deg, #3B82F6, #2563EB);
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
   }
-  
+
   &:active {
     transform: scale(0.95);
   }
@@ -715,7 +781,12 @@ onLoad(() => {
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 </style>

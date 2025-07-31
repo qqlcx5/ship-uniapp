@@ -53,10 +53,10 @@ function connectDevice() {
       icon: 'success',
     })
 
-    // 连接成功后跳转到主控台
+    // 连接成功后跳转到手动导航页面
     setTimeout(() => {
       uni.navigateTo({
-        url: '/pages/ship/dashboard',
+        url: '/pages/ship/manual',
       })
     }, 1500)
   }, 2000)
