@@ -131,6 +131,11 @@ function getOptimizationSuggestions() {
   return suggestions
 }
 
+// 返回上一页
+function goBack() {
+  uni.navigateBack()
+}
+
 // 菜单点击处理
 function handleMenuClick(item: any) {
   if (item.id === activeMenu.value)
@@ -205,6 +210,45 @@ onLoad(() => {
 
 <template>
   <view class="ai-container" :style="{ paddingTop: `${safeAreaInsets?.top || 0}px` }">
+    <!-- 顶部状态栏 -->
+    <view class="status-bar">
+      <view class="status-left">
+        <button class="back-button" @click="goBack">
+          <text class="back-icon">
+            ←
+          </text>
+        </button>
+        <view class="title-section">
+          <text class="ai-icon">
+            🧠
+          </text>
+          <text class="title">
+            AI智能管理
+          </text>
+        </view>
+        <view class="ai-status">
+          <view class="status-dot" />
+          <text class="status-text">
+            AI监控活跃
+          </text>
+        </view>
+      </view>
+      <view class="battery-summary">
+        <text class="summary-text">
+          电池状态:
+        </text>
+        <text class="summary-value" :class="{ warning: batteryData.isLowBattery }">
+          {{ batteryData.main.level }}%{{ batteryData.isLowBattery ? '警告' : '' }}
+        </text>
+        <text class="summary-text">
+          | 预计续航:
+        </text>
+        <text class="summary-value">
+          {{ batteryData.estimatedTime }}
+        </text>
+      </view>
+    </view>
+
     <!-- 电池预警横幅 -->
     <view v-if="batteryData.isLowBattery" class="battery-warning" @click="handleBatteryWarning">
       <text class="warning-icon">
@@ -219,7 +263,7 @@ onLoad(() => {
     </view>
 
     <!-- 主要内容区域 -->
-    <scroll-view class="content-area" scroll-y>
+    <scroll-view class="content-area" scroll-y enable-flex>
       <!-- 累计航行数据 -->
       <view class="section-title">
         <text class="title-icon">
@@ -587,6 +631,414 @@ onLoad(() => {
 .content-area {
   flex: 1;
   // padding: 32rpx;
+}
+
+// 电池预警横幅样式
+.battery-warning {
+  background: linear-gradient(90deg, #ef4444, #dc2626);
+  padding: 24rpx 32rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 2rpx solid rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  animation: warningPulse 2s infinite;
+}
+
+.warning-icon {
+  font-size: 32rpx;
+  margin-right: 16rpx;
+}
+
+.warning-text {
+  flex: 1;
+  color: white;
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.warning-level {
+  color: white;
+  font-size: 32rpx;
+  font-weight: bold;
+}
+
+@keyframes warningPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+// 累计数据网格样式
+.cumulative-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24rpx;
+  margin-bottom: 48rpx;
+}
+
+.data-card {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(15px);
+  border: 2rpx solid rgba(255, 255, 255, 0.2);
+  border-radius: 16rpx;
+  padding: 24rpx;
+  text-align: center;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background: rgba(79, 209, 199, 0.1);
+    border-color: rgba(79, 209, 199, 0.3);
+    transform: translateY(-2rpx);
+  }
+}
+
+.data-label {
+  display: block;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 24rpx;
+  margin-bottom: 12rpx;
+}
+
+.data-value {
+  display: block;
+  color: #4fd1c7;
+  font-size: 36rpx;
+  font-weight: bold;
+  margin-bottom: 8rpx;
+  font-family: monospace;
+}
+
+.data-unit {
+  display: block;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 20rpx;
+}
+
+// 历史轨迹样式
+.history-tracks {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+  margin-bottom: 48rpx;
+}
+
+.track-item {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(15px);
+  border: 2rpx solid rgba(255, 255, 255, 0.2);
+  border-radius: 16rpx;
+  padding: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: all 0.3s ease;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(79, 209, 199, 0.1);
+    border-color: rgba(79, 209, 199, 0.3);
+    transform: translateY(-2rpx);
+  }
+}
+
+.track-date {
+  color: #4fd1c7;
+  font-size: 28rpx;
+  font-weight: 600;
+  margin-bottom: 8rpx;
+}
+
+.track-details {
+  flex: 1;
+  margin-left: 24rpx;
+}
+
+.track-info {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4rpx;
+}
+
+.info-label {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 24rpx;
+  margin-right: 8rpx;
+}
+
+.info-value {
+  color: white;
+  font-size: 24rpx;
+  font-weight: 500;
+}
+
+.track-arrow {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 32rpx;
+}
+
+// 电池预警功能样式
+.battery-warning-section {
+  margin-bottom: 48rpx;
+}
+
+.battery-status-card {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(15px);
+  border: 2rpx solid rgba(255, 255, 255, 0.2);
+  border-radius: 16rpx;
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+}
+
+.battery-visual {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24rpx;
+  gap: 24rpx;
+}
+
+.battery-shell {
+  width: 120rpx;
+  height: 60rpx;
+  border: 4rpx solid rgba(255, 255, 255, 0.3);
+  border-radius: 8rpx;
+  background: rgba(0, 0, 0, 0.3);
+  position: relative;
+  overflow: hidden;
+
+  &::after {
+    content: '';
+    position: absolute;
+    right: -8rpx;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 8rpx;
+    height: 24rpx;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 0 4rpx 4rpx 0;
+  }
+}
+
+.battery-fill {
+  height: 100%;
+  border-radius: 4rpx;
+  transition: all 0.3s ease;
+
+  &.critical {
+    background: linear-gradient(90deg, #ef4444, #dc2626);
+    animation: batteryPulse 1.5s infinite;
+  }
+
+  &.warning {
+    background: linear-gradient(90deg, #f59e0b, #d97706);
+  }
+
+  &.good {
+    background: linear-gradient(90deg, #10b981, #059669);
+  }
+}
+
+.battery-percentage {
+  font-size: 36rpx;
+  font-weight: bold;
+
+  &.critical {
+    color: #ef4444;
+  }
+  &.warning {
+    color: #f59e0b;
+  }
+  &.good {
+    color: #10b981;
+  }
+}
+
+.battery-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.warning-actions {
+  display: flex;
+  gap: 16rpx;
+}
+
+.action-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  padding: 20rpx;
+  border-radius: 12rpx;
+  border: none;
+  font-size: 28rpx;
+  font-weight: 600;
+  transition: all 0.3s ease;
+
+  &.emergency {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: white;
+  }
+
+  &.optimize {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+  }
+
+  &:hover {
+    transform: translateY(-2rpx);
+    box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.3);
+  }
+}
+
+.btn-icon {
+  font-size: 24rpx;
+}
+
+.btn-text {
+  font-size: 24rpx;
+}
+
+// AI优化建议样式
+.optimization-section {
+  margin-bottom: 48rpx;
+}
+
+.efficiency-chart {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(15px);
+  border: 2rpx solid rgba(255, 255, 255, 0.2);
+  border-radius: 16rpx;
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+}
+
+.chart-title {
+  color: white;
+  font-size: 28rpx;
+  font-weight: 600;
+  margin-bottom: 24rpx;
+  text-align: center;
+}
+
+.chart-container {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  height: 200rpx;
+  gap: 16rpx;
+}
+
+.chart-bar {
+  flex: 1;
+  background: linear-gradient(to top, #4fd1c7, #60a5fa);
+  border-radius: 8rpx 8rpx 0 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 8rpx;
+  transition: all 0.3s ease;
+
+  &:hover {
+    transform: translateY(-4rpx);
+    box-shadow: 0 8rpx 16rpx rgba(79, 209, 199, 0.3);
+  }
+}
+
+.bar-label {
+  position: absolute;
+  bottom: -32rpx;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 20rpx;
+  text-align: center;
+}
+
+.bar-value {
+  color: white;
+  font-size: 18rpx;
+  font-weight: 600;
+  margin-bottom: 8rpx;
+}
+
+.optimization-btn {
+  width: 100%;
+  background: linear-gradient(135deg, #4fd1c7, #60a5fa);
+  color: white;
+  font-weight: 600;
+  padding: 24rpx;
+  border-radius: 16rpx;
+  border: none;
+  font-size: 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16rpx;
+  transition: all 0.3s ease;
+
+  &:hover {
+    transform: translateY(-2rpx);
+    box-shadow: 0 8rpx 24rpx rgba(79, 209, 199, 0.3);
+  }
+}
+
+// 底部菜单样式
+.bottom-menu {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(15px);
+  border-top: 2rpx solid rgba(255, 255, 255, 0.2);
+  z-index: 1000;
+}
+
+.menu-container {
+  display: flex;
+  height: 120rpx;
+}
+
+.menu-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.7);
+  transition: all 0.3s ease;
+  cursor: pointer;
+
+  &:hover,
+  &.active {
+    color: #4fd1c7;
+    background: rgba(79, 209, 199, 0.1);
+  }
+}
+
+.menu-icon {
+  font-size: 32rpx;
+  margin-bottom: 8rpx;
+}
+
+.menu-label {
+  font-size: 20rpx;
+  font-weight: 500;
 }
 
 .section-title {
